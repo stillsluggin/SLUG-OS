@@ -17,6 +17,7 @@ import { createDrumKit } from './drumkit.js';
 import { createSamplePlayer } from './samplePlayer.js';
 import { createMorph, MORPH_MAP } from './morph.js';
 import { createRecorder } from './recorder.js';
+import { createXY } from './xyfx.js';
 import { createRenderer } from './sampleRender.js';
 
 const MONO = new Set(['bass', 'melody', 'soloist']);
@@ -231,6 +232,52 @@ export function createOutput(ac) {
     },
   };
 
+  // ---- EXPORT "WITH FX": a private copy of the shared effects for one stem.
+  let xyTarget = 'ALL';
+  const groupOf = (name) => (name.startsWith('drum') ? 'DRUMS' : name === 'sampler' || name === 'loops' ? 'SAMPLER' : 'BAND');
+  function wetChain(name, node, cleanups) {
+    const sum = ac.createGain();
+    node.connect(sum);
+    const bus = name.startsWith('drum') ? buses.drummer : buses[name];
+    if (bus) {
+      // This part's share of the room reverb and the tempo echo.
+      const rs = ac.createGain(); rs.gain.value = bus.rev.gain.value;
+      const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 200;
+      const conv = ac.createConvolver(); conv.buffer = master.reverbBuffer;
+      node.connect(rs).connect(hp).connect(conv).connect(sum);
+      const ds = ac.createGain(); ds.gain.value = bus.del.gain.value;
+      const d = ac.createDelay(2); d.delayTime.value = master.delaySeconds;
+      const fb = ac.createGain(); fb.gain.value = 0.35;
+      const lp = ac.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 2800;
+      node.connect(ds).connect(d).connect(lp).connect(fb).connect(d);
+      lp.connect(sum);
+      cleanups.push(() => { try { node.disconnect(rs); node.disconnect(ds); } catch (e) { /* gone */ } });
+    }
+    let last = sum;
+    // The XY pad, mirrored live, if it's aimed at this part.
+    if (xyTarget === 'ALL' || xyTarget === groupOf(name)) {
+      const src = master.xy;
+      const copy = createXY(ac);
+      const snap = src.snapshot();
+      copy.setTempo(src.tempo);
+      if (src.clock) copy.setClock(src.clock);
+      for (const ax of ['x', 'y']) if (snap.ids[ax]) { copy.setEffect(ax, snap.ids[ax], snap.params[ax]); copy.setAmount(ax, snap.amounts[ax]); }
+      const off = src.subscribe((type, ax, a, b) => {
+        if (type === 'effect') copy.setEffect(ax, a, b);
+        else if (type === 'amount') copy.setAmount(ax, a);
+        else copy.setParams(ax, a);
+      });
+      sum.connect(copy.input);
+      last = copy.output;
+      cleanups.push(() => { off(); for (const ax of ['x', 'y']) copy.setAmount(ax, 0); });
+    }
+    const warm = ac.createWaveShaper();
+    warm.curve = master.warmthCurve;
+    last.connect(warm);
+    cleanups.push(() => { try { node.disconnect(sum); } catch (e) { /* gone */ } });
+    return warm;
+  }
+
   // Synced XY effects (LFO filter, trance gate) start on the next beat of the band.
   master.xy.setClock(() => {
     const beat = 60 / tempo;
@@ -268,8 +315,27 @@ export function createOutput(ac) {
       return true;
     },
     recorder: createRecorder(ac),
+    /**
+     * The points EXPORT records, plus a cleanup function.
+     *   split: drums as one stem, or one per lane (kick, snare, hat, open, rim, perc)
+     *   wet:   each stem gets its own copy of the room + echo (at that part's send
+     *          level), the XY pad (if it's aimed at that part) and the tape warmth.
+     */
+    exportSources({ split = false, wet = false } = {}) {
+      const raw = {
+        harmony: buses.harmony.out, melody: buses.melody.out, bass: buses.bass.out, soloist: buses.soloist.out,
+        sampler: sampler.bus, loops: loopBus,
+      };
+      if (split) for (const [lane, node] of Object.entries(drums.laneNodes)) raw[`drum-${lane}`] = node;
+      else raw.drums = buses.drummer.out;
+      const cleanups = [];
+      const sources = { mix: master.outNode };
+      for (const [name, node] of Object.entries(raw)) sources[name] = wet ? wetChain(name, node, cleanups) : node;
+      return { sources, cleanup: () => cleanups.forEach((f) => f()) };
+    },
     /** SHELL SHOCK "AFFECTS": ALL, BAND, DRUMS or SAMPLER (with loops). */
     setXYTarget(target) {
+      xyTarget = target;
       for (const [name, g] of Object.entries(groups)) {
         g.disconnect();
         g.connect(target === 'ALL' || target === name.toUpperCase() ? master.input : master.dryInput);

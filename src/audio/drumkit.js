@@ -15,6 +15,14 @@ export function createDrumKit(ac, dest) {
   sat.curve = curve;
   bus.connect(dust).connect(sat).connect(dest);
 
+  // One gain per drum lane (so EXPORT can split the drums), all into the bus.
+  const laneNodes = {};
+  const laneNode = (lane) => {
+    if (!laneNodes[lane]) { laneNodes[lane] = ac.createGain(); laneNodes[lane].connect(bus); }
+    return laneNodes[lane];
+  };
+  for (const l of ['kick', 'snare', 'hat', 'open', 'rim', 'perc']) laneNode(l);
+
   let kit = { name: 'Synth Bap', lanes: {} }; // lanes: { kick: [AudioBuffer...] }
   const rr = {}; // round robin per lane
 
@@ -28,7 +36,7 @@ export function createDrumKit(ac, dest) {
       src.buffer = bufs[rr[lane]];
       const g = ac.createGain();
       g.gain.value = 0.25 + 0.85 * vel;
-      src.connect(g).connect(bus);
+      src.connect(g).connect(laneNode(lane));
       src.start(t);
       return;
     }
@@ -37,7 +45,7 @@ export function createDrumKit(ac, dest) {
 
   function synth(lane, vel, t) {
     const g = ac.createGain();
-    g.connect(bus);
+    g.connect(laneNode(lane));
     const v = 0.3 + 0.7 * vel;
     if (lane === 'kick') {
       const o = ac.createOscillator();
@@ -50,7 +58,7 @@ export function createDrumKit(ac, dest) {
       const click = noiseSource(ac);
       const cf = ac.createBiquadFilter(); cf.type = 'lowpass'; cf.frequency.value = 2500;
       const cg = ac.createGain(); cg.gain.setValueAtTime(0.25 * v, t); cg.gain.setTargetAtTime(0, t, 0.006);
-      click.connect(cf).connect(cg).connect(bus); click.start(t); click.stop(t + 0.05);
+      click.connect(cf).connect(cg).connect(laneNode('kick')); click.start(t); click.stop(t + 0.05);
     } else if (lane === 'snare' || lane === 'rim') {
       const n = noiseSource(ac);
       const bp = ac.createBiquadFilter();
@@ -93,5 +101,5 @@ export function createDrumKit(ac, dest) {
     }
   }
 
-  return { play, setKit, get kit() { return kit; }, bus };
+  return { play, setKit, get kit() { return kit; }, bus, laneNodes };
 }

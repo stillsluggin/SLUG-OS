@@ -308,6 +308,21 @@ real phone.
   WAV), `src/storage/zip.js` (store-only zip), `src/ui/exportWin.js`. Stems
   are the player buses before the shared reverb/delay; mix = master output.
 
+### Knobs, TWEAK, AFFECTS, stem FX (notes)
+- Knob look: `.cap` (static, shadow) + `.rot` (rotates the pointer) in
+  `widgets.js knob()`.
+- SHELL SHOCK hidden knobs: `params` per effect in `core/xy.js`, makers take
+  `params(p)`; UI keeps `app.xy.params[effectId]`; combos store `px`/`py`.
+  `env.nextBeat()` (from output's beat clock) syncs LFO FILTER and TRANCE GATE.
+- AFFECTS: master has `input` (through XY) and `dryInput` (skips it); output
+  routes three groups (band, drums, sampler+loops) to one or the other.
+- EXPORT stems: `output.exportSources({ split, wet })`. Drum lanes have their
+  own gain nodes in `drumkit.js`. WET builds a private reverb/delay copy per
+  stem at that part's send level, a live-mirrored XY copy
+  (`xy.subscribe`) if the pad targets it, and the warmth curve.
+- Chord History already exists (BAND page, next to the chord name) — the
+  owner asked for it again before PR #2 was merged.
+
 ### Status
 Built: features 1–9 (see CHANGELOG.md). Not built yet: the "Later" list
 (full song saving, age/vinyl knob, in-app recording/resampling, sampler page B).

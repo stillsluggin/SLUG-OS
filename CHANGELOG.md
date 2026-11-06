@@ -2,7 +2,25 @@
 
 All notable changes to Slug OS, newest first. Written for players, not programmers.
 
-## Unreleased (branch claude/hiphop-export)
+## Unreleased (branch claude/fx-export-knobs)
+
+### Changed
+- **Knobs redesigned**: a raised cap with a ridged edge and a turning pointer,
+  so they read as knobs at a glance; the slime-dot ring still shows the value.
+
+### Added
+- **Shell Shock TWEAK drawer**: 2–4 hidden knobs per effect, remembered per
+  effect and saved in combos.
+- **LFO FILTER** effect: tempo-synced low-pass sweep (rate, resonance, shape,
+  centre), locked to the beat.
+- **LO-FI eras**: SAMPLER, CASSETTE, RADIO, CONSOLE.
+- **AFFECTS**: aim Shell Shock at everything, the band, the drums or the
+  sampler + loops.
+- **EXPORT, multitrack options**: drums on one track or split per drum; stems
+  RAW or WITH FX (each stem's own reverb/echo share, Shell Shock, warmth),
+  for loops and live performances.
+
+## Earlier (branch claude/hiphop-export)
 
 ### Added
 - **Five hip hop, jazz, funk and soul styles**: BOOM BAP, DUSTY, STRUT,

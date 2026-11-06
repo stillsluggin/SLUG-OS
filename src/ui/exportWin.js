@@ -12,12 +12,12 @@ import { zip } from '../storage/zip.js';
 import { STYLE_LABELS } from '../core/nextChord.js';
 
 const RATES = [48000, 44100, 22050, 11025];
-const STEMS = ['harmony', 'melody', 'bass', 'soloist', 'drums', 'sampler', 'loops'];
 
 export function exportWindow(app) {
   const { session } = app;
   const st = session.state;
-  const opt = { mode: 'LOOP', bars: 4, tail: 2, format: 'MIX', rate: 44100, bits: 16 };
+  const opt = { mode: 'LOOP', bars: 4, tail: 2, format: 'MIX', drums: 'ONE', fx: 'RAW', rate: 44100, bits: 16 };
+  let cleanup = null;
   let result = null; // { blob, name, mixBuffer }
   let timer = null;
 
@@ -33,6 +33,8 @@ export function exportWindow(app) {
     seg('BARS', [1, 2, 4, 8, 16], 'bars'),
     seg('TAIL', [0, 2, 4], 'tail', (v) => `${v}s`),
     seg('FORMAT', ['MIX', 'STEMS'], 'format', (v) => (v === 'MIX' ? 'STEREO MIX' : 'MULTITRACK')),
+    seg('DRUMS', ['ONE', 'SPLIT'], 'drums', (v) => (v === 'ONE' ? 'ONE TRACK' : 'SPLIT')),
+    seg('FX', ['RAW', 'WET'], 'fx', (v) => (v === 'RAW' ? 'RAW' : 'WITH FX')),
     seg('RATE', RATES, 'rate', (v) => `${(v / 1000).toFixed(v % 1000 ? 1 : 0)}k`),
     seg('BITS', [16, 24], 'bits'),
   ];
@@ -66,7 +68,7 @@ export function exportWindow(app) {
       ...rows,
       h('div.row', { style: 'margin-top:8px' }, goBtn),
       slime, status, doneRow,
-      h('p.help', { text: 'Stems are recorded before the shared room and echo (those are on the mix). Shell Shock and the master warmth are on the mix only. Lo-fi crunch: try 22k or 11k, or use Shell Shock\'s LO-FI.' }),
+      h('p.help', { text: 'RAW stems are the clean parts. WITH FX gives each stem its own share of the room and echo, Shell Shock (if the pad is aimed at that part) and the tape warmth. SPLIT puts kick, snare, hats, rim and perc on their own tracks. Works for LOOP and LIVE. Lo-fi crunch: try 22k or 11k, or Shell Shock\'s LO-FI.' }),
       h('div.lab', { style: 'margin-top:8px', text: 'PROJECT FILE (settings, chords, parts, beats; your sounds stay on this device)' }),
       projRow));
   const wrap = h('div.loader-wrap.export-wrap', {}, win);
@@ -95,7 +97,13 @@ export function exportWindow(app) {
     result = null;
     const rec = app.audio.recorder;
     const ac = app.ac();
-    const sources = opt.format === 'MIX' ? { mix: app.audio.taps().mix } : app.audio.taps();
+    let sources;
+    if (opt.format === 'MIX') sources = { mix: app.audio.taps().mix };
+    else {
+      const ex = app.audio.exportSources({ split: opt.drums === 'SPLIT', wet: opt.fx === 'WET' });
+      sources = ex.sources;
+      cleanup = ex.cleanup;
+    }
     session.state.__exporting = true;
     app.setRecIndicator(true);
     render();
@@ -127,6 +135,7 @@ export function exportWindow(app) {
       const take = await rec.stop(start + total);
       await finish(take);
     } catch (e) {
+      if (cleanup) { cleanup(); cleanup = null; }
       status.textContent = `Export failed: ${e.message}`;
       session.state.__exporting = false;
       app.setRecIndicator(false);
@@ -142,6 +151,7 @@ export function exportWindow(app) {
 
   async function finish(take) {
     cancelAnimationFrame(timer);
+    if (cleanup) { cleanup(); cleanup = null; }
     session.state.__exporting = false;
     app.setRecIndicator(false);
     status.textContent = 'Writing files…';
@@ -150,7 +160,7 @@ export function exportWindow(app) {
     await new Promise((r) => setTimeout(r, 30));
     const name = baseName();
     const files = [];
-    const order = ['mix', ...STEMS];
+    const order = Object.keys(take.tracks); // the mix first, then each part
     let n = 1;
     for (const key of order) {
       const tr = take.tracks[key];
@@ -175,6 +185,7 @@ export function exportWindow(app) {
     rows.forEach((r) => r.update());
     const loop = opt.mode === 'LOOP';
     rows[1].style.display = rows[2].style.display = loop ? '' : 'none';
+    rows[4].style.display = rows[5].style.display = opt.format === 'STEMS' ? '' : 'none';
     const busy = !!session.state.__exporting;
     goBtn.textContent = busy ? (opt.mode === 'LIVE' ? '■ STOP' : '● RECORDING…') : loop ? `▶ RECORD ${opt.bars} BAR${opt.bars > 1 ? 'S' : ''}` : '● START RECORDING';
     goBtn.disabled = busy && loop;

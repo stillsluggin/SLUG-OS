@@ -137,6 +137,11 @@ ex = await exportRun(() => {});
 const names = []; for (let o = 0; o < ex.bytes.length - 4; o++) if (ex.bytes.readUInt32LE(o) === 0x04034b50) { const nl = ex.bytes.readUInt16LE(o + 26); names.push(ex.bytes.slice(o + 30, o + 30 + nl).toString()); }
 const sizes = []; for (let o = 0; o < ex.bytes.length - 4; o++) if (ex.bytes.readUInt32LE(o) === 0x04034b50) sizes.push(ex.bytes.readUInt32LE(o + 18));
 R.exportStems = { name: ex.name, files: names.map((n) => n.split('/').pop()), sameLength: new Set(sizes).size === 1 };
+await setOpts({ DRUMS: 'SPLIT', FX: 'WITH FX', BITS: '16' });
+ex = await exportRun(() => {});
+const names2 = []; const sizes2 = []; for (let o = 0; o < ex.bytes.length - 4; o++) if (ex.bytes.readUInt32LE(o) === 0x04034b50) { const nl = ex.bytes.readUInt16LE(o + 26); names2.push(ex.bytes.slice(o + 30, o + 30 + nl).toString().split('/').pop()); sizes2.push(ex.bytes.readUInt32LE(o + 18)); }
+R.exportSplitWet = { files: names2, sameLength: new Set(sizes2).size === 1 };
+await setOpts({ DRUMS: 'ONE TRACK', FX: 'RAW' });
 await setOpts({ RECORD: 'LIVE', FORMAT: 'STEREO MIX' });
 await page.tap('.export-win .bevel.hot'); await page.waitForTimeout(1200);
 await page.tap('.export-win .bevel.hot');

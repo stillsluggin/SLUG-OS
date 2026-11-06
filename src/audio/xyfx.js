@@ -28,6 +28,8 @@ export function createXY(ac) {
   const ids = { x: null, y: null };
   const amounts = { x: 0, y: 0 };
   const params = { x: {}, y: {} };
+  const listeners = new Set(); // copies that follow this pad (EXPORT stems with FX)
+  const tell = (...a) => listeners.forEach((fn) => fn(...a));
   const ready = loadFxWorklet(ac).then((ok) => {
     env.worklet = ok;
     for (const ax of ['x', 'y']) if (ids[ax] && NEEDS_WORKLET.has(ids[ax])) { const id = ids[ax]; ids[ax] = null; setEffect(ax, id, params[ax]); }
@@ -43,6 +45,7 @@ export function createXY(ac) {
   }
 
   function setEffect(axis, id, p = null) {
+    tell('effect', axis, id, p);
     if (p) params[axis] = { ...defaultParams(id), ...p };
     if (ids[axis] === id) { slots[axis]?.params?.(params[axis]); return; }
     const old = slots[axis];
@@ -58,11 +61,13 @@ export function createXY(ac) {
 
   function setAmount(axis, v) {
     amounts[axis] = Math.max(0, Math.min(1, v));
+    tell('amount', axis, amounts[axis]);
     if (slots[axis]) slots[axis].set(amounts[axis]);
   }
 
   function setParams(axis, p) {
     params[axis] = { ...params[axis], ...p };
+    tell('params', axis, params[axis]);
     slots[axis]?.params?.(params[axis]);
   }
 
@@ -72,6 +77,9 @@ export function createXY(ac) {
     setTempo(bpm) { tempo = bpm; for (const s of Object.values(slots)) s && s.tempo && s.tempo(bpm); },
     setClock(fn) { clock = fn; },
     /** The current state, so EXPORT can build an identical copy for each stem. */
+    subscribe(fn) { listeners.add(fn); return () => listeners.delete(fn); },
+    get tempo() { return tempo; },
+    get clock() { return clock; },
     snapshot: () => ({ ids: { ...ids }, amounts: { ...amounts }, params: { x: { ...params.x }, y: { ...params.y } } }),
     get ids() { return { ...ids }; },
     get worklet() { return env.worklet; },

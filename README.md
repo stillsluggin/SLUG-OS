@@ -21,6 +21,11 @@ following TEMPO, even when the band is stopped.
 **SEQ**: the 16-step chord sequencer. **DRUMS**: kits, the boom bap pattern,
 finger drums, loops. **SAMPLER**: load, chop and play pads. **SHELL SHOCK**: the XY effects pad.
 
+### Knobs
+
+Drag up/down (or sideways) on any knob; the pointer turns and the slime dots
+around it show how far. Scroll or use the arrow keys on a computer.
+
 ### SHELL SHOCK (the XY effects pad)
 
 Drag on the big grid: left-right plays the **X** effect, up-down the **Y**
@@ -32,6 +37,15 @@ trail. Let go and the effects glide back to off; turn on **HOLD** to keep them.
   FILTER, ISOLATOR, BEAT REPEAT, PHASER, FLANGER, DELAY, TAPE STOP, STUTTER,
   BIT CRUSH, LO-FI, VINYL WOBBLE, TAPE SATURATION, REVERB WASH, CHORUS,
   RING MOD, PITCH DIVE, TRANCE GATE, REVERSE REPEAT.
+- **⚙ TWEAK** opens a drawer with 2–4 hidden knobs for each loaded effect
+  (e.g. FILTER RES/RANGE, DELAY TIME/FEEDBACK/TONE, LO-FI ERA/HISS). Each
+  effect remembers its settings; saved combos keep them.
+- **LFO FILTER**: a tempo-synced low-pass sweep that starts on the beat. Pad =
+  depth; TWEAK: RATE (4 bars to 1/16), RES, SHAPE (sine/tri/square/saw), CENTER.
+- **LO-FI ERA**: SAMPLER (12-bit), CASSETTE (soft top, hiss, wow), RADIO
+  (narrow, crunchy), CONSOLE (8-bit).
+- **AFFECTS** (in TWEAK): ALL, BAND (the four synth players), DRUMS or SAMPLER
+  (with loops). Only the chosen part goes through the pad.
 - **TAPE STOP** is played by position: just past the start the tape winds
   down slowly (about 3 seconds), further along it's quicker, at the far end it
   stops instantly. Drag back and it spins smoothly back up to speed.
@@ -172,6 +186,10 @@ flips major/minor), REC (write chords into the sequencer), PLAYER (next focus).
   one WAV per part that played: harmony, melody, bass, soloist, drums,
   sampler, loops, all the same length so they line up in your DAW). Stems are
   dry of the shared room/echo and Shell Shock; those are on the mix.
+- With MULTITRACK: **DRUMS** ONE TRACK or SPLIT (kick, snare, hat, open,
+  rim, perc each on their own track), and **FX** RAW (clean parts) or WITH FX
+  (each stem gets its own share of the room and echo, Shell Shock if the pad
+  is aimed at it, and the tape warmth). Works for LOOP and LIVE recording.
 - **RATE** 48k, 44.1k, 22k or 11k (the low ones for crunch) and **BITS** 16/24.
 - **→ SAMPLER PAD** puts the recording on the first empty pad (resampling).
 - **PROJECT FILE**: save/open your settings, chords, parts, beats and combos
