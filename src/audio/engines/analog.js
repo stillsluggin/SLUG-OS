@@ -30,9 +30,12 @@ export function createAnalog(ac) {
 
     const oscs = [];
     const freqs = [];
+    const fat = slot.knobs[3] ?? 0; // MORPH: FAT spreads the oscillators apart
+    let oi = 0;
     for (const [type, g] of WAVES[p.wave] || WAVES.saw) {
       const o = ac.createOscillator();
       o.type = type;
+      o.detune.value = (oi++ % 2 ? 1 : -1) * fat * 14;
       const gg = ac.createGain();
       gg.gain.value = g;
       o.connect(gg).connect(lp1);

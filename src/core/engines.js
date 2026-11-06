@@ -1,5 +1,8 @@
 // engines.js — the seven Slug synth engines, as data.
 //
+// Each engine also has a MORPH layer: two more named knobs (`morph`) that
+// reshape the sound; tap MORPH on the BAND page to turn A/B into them.
+//
 // Each engine makes sound a genuinely different way (the browser renderers
 // live in src/audio/engines/). Every engine shows exactly TWO knobs; a preset is
 // a starting position for those knobs plus a few hidden settings.
@@ -17,6 +20,7 @@
 export const ENGINES = {
   keys: {
     name: 'KEYS', method: 'FM tines', knobs: ['WAVE', 'TONE'], poly: true,
+    morph: ['DUST', 'HALO'], morphDefaults: [0.15, 0.2],
     presets: [
       { name: 'Soul Tines', knobs: [0.45, 0.4] },
       { name: 'Dusty Suitcase', knobs: [0.75, 0.3], p: { bell: 0.08, decay: 2.4 } },
@@ -26,6 +30,7 @@ export const ENGINES = {
   },
   analog: {
     name: 'ANALOG', method: 'ladder filter', knobs: ['GLIDE', 'SQUELCH'], poly: true,
+    morph: ['GRIT', 'FAT'], morphDefaults: [0.1, 0.25],
     presets: [
       { name: 'Sunset Glide', knobs: [0.7, 0.25], p: { wave: 'sine+saw', sub: 0.6, cutoff: 420, decay: 0.9, sustain: 0.8, vib: 4 } },
       { name: 'Funk Squelch', knobs: [0.08, 0.8], p: { wave: 'saw', sub: 0.3, cutoff: 260, decay: 0.25, sustain: 0.35 } },
@@ -35,6 +40,7 @@ export const ENGINES = {
   },
   pad: {
     name: 'PAD', method: 'ensemble chorus', knobs: ['WIDTH', 'GLOW'], poly: true,
+    morph: ['AIRY', 'SWELL'], morphDefaults: [0.2, 0.15],
     presets: [
       { name: 'Velvet', knobs: [0.7, 0.45] },
       { name: 'Sunrise', knobs: [0.9, 0.75], p: { attack: 0.5 } },
@@ -43,6 +49,7 @@ export const ENGINES = {
   },
   pluck: {
     name: 'PLUCK', method: 'plucked string', knobs: ['THUMP', 'MUFFLE'], poly: true,
+    morph: ['BODY', 'SNAP'], morphDefaults: [0.3, 0.15],
     presets: [
       { name: 'Soul Thump', knobs: [0.85, 0.75], p: { body: 0.9, decay: 0.997 } },
       { name: 'Soul Guitar', knobs: [0.35, 0.3], p: { body: 0.4, decay: 0.996 } },
@@ -52,6 +59,7 @@ export const ENGINES = {
   },
   shine: {
     name: 'SHINE', method: 'wavetable', knobs: ['SPARKLE', 'AIR'], poly: true,
+    morph: ['MELT', 'GLINT'], morphDefaults: [0.1, 0.25],
     presets: [
       { name: 'Crystal Lead', knobs: [0.6, 0.5], p: { table: 'crystal', unison: 3 } },
       { name: 'Digi Bell', knobs: [0.5, 0.65], p: { table: 'bell', unison: 1, decay: 1.2, sustain: 0.1 } },
@@ -62,6 +70,7 @@ export const ENGINES = {
   },
   trip: {
     name: 'TRIP', method: 'feedback FM', knobs: ['WEIRD', 'DRIFT'], poly: true,
+    morph: ['SPORE', 'PULSE'], morphDefaults: [0.2, 0],
     presets: [
       { name: 'Melt', knobs: [0.35, 0.5], p: { ratios: [1, 1.41, 3.17] } },
       { name: 'Wobble Moth', knobs: [0.6, 0.8], p: { ratios: [1, 0.5, 2.71] } },
@@ -70,6 +79,7 @@ export const ENGINES = {
   },
   siren: {
     name: 'SIREN', method: 'pitch sweep', knobs: ['RISE', 'SPEED'], poly: true,
+    morph: ['HOWL', 'STATIC'], morphDefaults: [0.2, 0],
     presets: [
       { name: 'Riser', knobs: [0.7, 0.3], p: { shape: 'rise' } },
       { name: 'Air Raid', knobs: [0.5, 0.6], p: { shape: 'siren' } },
@@ -83,10 +93,21 @@ export const ENGINES = {
 export const ENGINE_IDS = ['keys', 'analog', 'pad', 'pluck', 'shine', 'trip', 'siren'];
 
 /** A fresh engine slot for a player: engine id, preset index, the two knob values. */
+/**
+ * knobs = [A, B, MORPH 1, MORPH 2]. A and B are the engine's two main knobs;
+ * the MORPH pair reshapes the sound (src/audio/morph.js). Older saves with
+ * two knobs get the engine's MORPH defaults.
+ */
 export function engineSlot(engine, preset = 0) {
   const e = ENGINES[engine];
   const pr = e.presets[preset] || e.presets[0];
-  return { engine, preset, knobs: [...pr.knobs] };
+  return { engine, preset, knobs: [...pr.knobs, ...(pr.morph || e.morphDefaults)] };
+}
+
+export function fixSlot(slot) {
+  if (!slot || !ENGINES[slot.engine]) return slot;
+  if (slot.knobs.length < 4) slot.knobs = [...slot.knobs.slice(0, 2), ...ENGINES[slot.engine].morphDefaults];
+  return slot;
 }
 
 export function presetParams(slot) {

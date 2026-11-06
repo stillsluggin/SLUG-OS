@@ -15,6 +15,7 @@ import { createTrip } from './engines/trip.js';
 import { createSiren } from './engines/siren.js';
 import { createDrumKit } from './drumkit.js';
 import { createSamplePlayer } from './samplePlayer.js';
+import { createMorph, MORPH_MAP } from './morph.js';
 import { createRenderer } from './sampleRender.js';
 
 const MONO = new Set(['bass', 'melody', 'soloist']);
@@ -42,8 +43,11 @@ export function createOutput(ac) {
     out.connect(master.input);
     out.connect(rev).connect(master.reverbIn);
     out.connect(del).connect(master.delayIn);
-    voiceIn.connect(out);
-    buses[id] = { voiceIn, out, rev, del, insert: null, player: null };
+    // voices -> engine insert -> MORPH colour chain -> level
+    const morph = createMorph(ac);
+    morph.output.connect(out);
+    voiceIn.connect(morph.input);
+    buses[id] = { voiceIn, out, rev, del, insert: null, player: null, morph };
   }
   drums.bus.disconnect();
   drums.bus.connect(buses.drummer.out);
@@ -61,9 +65,11 @@ export function createOutput(ac) {
       b.voiceIn.disconnect();
       if (b.insert) b.insert.output.disconnect();
       b.insert = eng.insert ? eng.insert() : null;
-      if (b.insert) { b.voiceIn.connect(b.insert.input); b.insert.output.connect(b.out); }
-      else b.voiceIn.connect(b.out);
+      if (b.insert) { b.voiceIn.connect(b.insert.input); b.insert.output.connect(b.morph.input); }
+      else b.voiceIn.connect(b.morph.input);
     }
+    const k = p.slot.knobs;
+    b.morph.set((MORPH_MAP[p.slot.engine] || (() => ({})))(k[2] ?? 0, k[3] ?? 0));
     if (b.insert) b.insert.set(p.slot.knobs, presetParams(p.slot));
     const s = eng.sends(p.slot.knobs);
     b.rev.gain.setTargetAtTime(s.reverb, ac.currentTime, 0.05);
@@ -229,6 +235,7 @@ export function createOutput(ac) {
     setTempo(bpm) {
       tempo = bpm;
       master.setTempo(bpm);
+      for (const b of Object.values(buses)) b.morph.setTempo(bpm);
       for (const l of loops.values()) if (l.src) l.src.playbackRate.setTargetAtTime(tempo / l.bpm, ac.currentTime, 0.05);
     },
     /** Toggle a loop: starts on the next bar while playing, or right away when stopped. */

@@ -19,7 +19,7 @@
 import { keyName } from './theory.js';
 import { diatonicChord, applyBends, voiceChord, chordName, romanOf, sameChord } from './chord.js';
 import { suggestNext, STYLE_IDS, STYLE_LABELS } from './nextChord.js';
-import { ENGINES, ENGINE_IDS, engineSlot } from './engines.js';
+import { ENGINES, ENGINE_IDS, engineSlot, fixSlot } from './engines.js';
 import { PLAYER_IDS, PLAYER_NAMES, MODES, HARMONY_MODES, BASS_MODES, harmonyEvents, bassEvents, melodyEvents, soloEvents, plateNotes } from './players.js';
 import { bassRoot } from './bass.js';
 import { drumEvents, generateBoomBap, generateBeat, LANES } from './drums.js';
@@ -47,6 +47,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     human: 0.35,
     playing: false,
     metronome: false,
+    morph: false, // knobs A/B show the MORPH pair
     step: 0,
     players: DEFAULT_PLAYERS.map((p) => ({ ...p, slot: p.slot && { ...p.slot, knobs: [...p.slot.knobs] } })),
     focus: 0,
@@ -560,6 +561,14 @@ export function createSession(out, { rng = Math.random } = {}) {
     toast(on ? 'PLAY' : 'STOP');
   }
 
+  /** MORPH: knobs A and B switch to the engine's two MORPH knobs (and back). */
+  function toggleMorph() {
+    state.morph = !state.morph;
+    const p = state.players[state.focus];
+    toast(state.morph && p.slot ? `MORPH · ${ENGINES[p.slot.engine].morph.join(' + ')}` : 'MAIN KNOBS');
+    emit();
+  }
+
   /** Set the tempo directly (the BPM pop-up). 40..220 BPM. */
   function setTempo(bpm) {
     const t = Math.round(Math.max(40, Math.min(220, Number(bpm) || state.tempo)));
@@ -656,8 +665,8 @@ export function createSession(out, { rng = Math.random } = {}) {
       case 'swing': return state.swing;
       case 'human': return state.human;
       case 'style': return (STYLE_IDS.indexOf(state.style) + 0.5) / STYLE_IDS.length;
-      case 'a': return p.slot ? p.slot.knobs[0] : 0;
-      case 'b': return p.slot ? p.slot.knobs[1] : 0;
+      case 'a': return p.slot ? p.slot.knobs[state.morph ? 2 : 0] ?? 0 : 0;
+      case 'b': return p.slot ? p.slot.knobs[state.morph ? 3 : 1] ?? 0 : 0;
       case 'level': return p.level;
     }
     return 0;
@@ -666,7 +675,7 @@ export function createSession(out, { rng = Math.random } = {}) {
   function knobLabel(i) {
     const p = state.players[state.focus];
     const id = KNOBS[i].id;
-    if ((id === 'a' || id === 'b') && p.slot) return ENGINES[p.slot.engine].knobs[id === 'a' ? 0 : 1];
+    if ((id === 'a' || id === 'b') && p.slot) return (state.morph ? ENGINES[p.slot.engine].morph : ENGINES[p.slot.engine].knobs)[id === 'a' ? 0 : 1];
     if (id === 'a' || id === 'b') return '—';
     return KNOBS[i].label;
   }
@@ -698,7 +707,7 @@ export function createSession(out, { rng = Math.random } = {}) {
       }
       case 'a': case 'b':
         if (!p.slot) return;
-        p.slot.knobs[KNOBS[i].id === 'a' ? 0 : 1] = v;
+        p.slot.knobs[(KNOBS[i].id === 'a' ? 0 : 1) + (state.morph ? 2 : 0)] = v;
         syncPlayer(p.id);
         break;
       case 'level': p.level = v; syncPlayer(p.id); break;
@@ -927,6 +936,7 @@ export function createSession(out, { rng = Math.random } = {}) {
       if (!p) return;
       Object.assign(p, sp);
       if (p.slot && !ENGINES[p.slot.engine]) p.slot = engineSlot('keys');
+      fixSlot(p.slot);
     });
     if (d.seq) state.seq = { ...createSeq(), ...d.seq, rec: false };
     if (d.trail) trail = createTrail(d.trail);
@@ -950,7 +960,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     keyDown, keyUp, buttonDown, buttonUp, pickDown, pickUp, setBend,
     focus, cycleMode, cycleEngine, cyclePreset, cycleFeel, toggleBassLatch, setPlaying,
     knob, knobValue, knobLabel, knobText,
-    seqSelect, seqSet, seqClear, seqAuto, toggleMetronome, setKey, setTempo,
+    seqSelect, seqSet, seqClear, seqAuto, toggleMetronome, setKey, setTempo, toggleMorph,
     historyBack, historyForward, historyGo, capture, undo, clearPart, setRec, toggleRecMode,
     partLoopBeats, get canUndo() { return undoStack.length > 0 || (state.seq.rec && passDirty); },
     get trail() { return trail; },

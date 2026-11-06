@@ -194,6 +194,8 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .focusbar { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin-top: 5px; }
 .focusbar .nm { font-family: var(--px); font-size: 9px; margin-right: 2px; }
 .focusbar .preset { flex: 1; min-width: 90px; justify-content: space-between; }
+.focusbar .morphbtn { font-family: var(--vt); font-size: 18px; padding: 2px 6px; }
+.focusbar .morphbtn.on { font-family: var(--px); font-size: 9px; }
 
 /* ---------------------------------------------------------- knobs --- */
 .panel { display: flex; flex-direction: column; gap: 6px; }

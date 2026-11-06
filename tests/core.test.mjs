@@ -491,3 +491,26 @@ test('hip hop: style-aware beats, CHOP mode, generated beat follows the style', 
   s.knob(styleKnob, (STYLE_IDS.indexOf('strut') + 0.5) / STYLE_IDS.length);
   assert.equal(JSON.stringify(s.state.drums.pattern), mine, 'edited beat kept');
 });
+
+import { fixSlot, engineSlot as slotOf } from '../src/core/engines.js';
+import { MORPH_MAP } from '../src/audio/morph.js';
+
+test('MORPH: two named extra knobs per engine, A/B switch to them', () => {
+  for (const id of ENGINE_IDS) {
+    assert.equal(ENGINES[id].morph.length, 2, id);
+    assert.equal(slotOf(id).knobs.length, 4, id);
+    assert.equal(typeof MORPH_MAP[id], 'function', id);
+    const zero = MORPH_MAP[id](0, 0);
+    assert.ok(Object.values(zero).every((v) => !v || v === 0.2 || v === 0.22 || v === 2), `${id} neutral at zero`);
+  }
+  assert.equal(fixSlot({ engine: 'keys', preset: 0, knobs: [0.4, 0.5] }).knobs.length, 4, 'old saves upgraded');
+  const s = createSession(fakeOut(), { rng });
+  s.focus(0);
+  assert.equal(s.knobLabel(4), 'WAVE');
+  s.toggleMorph();
+  assert.equal(s.knobLabel(4), 'DUST');
+  assert.equal(s.knobLabel(5), 'HALO');
+  s.knob(4, 0.9);
+  assert.equal(s.state.players[0].slot.knobs[2], 0.9);
+  assert.notEqual(s.state.players[0].slot.knobs[0], 0.9, 'main knob untouched');
+});

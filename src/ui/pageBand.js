@@ -69,7 +69,9 @@ export function bandPage({ session }) {
   const engBtn = button('ENGINE', () => session.cycleEngine(st.focus));
   const presetBtn = button('', () => session.cyclePreset(st.focus), 'preset');
   const feelBtn = button('', () => session.cycleFeel(st.focus));
-  const focusbar = h('div.focusbar', {}, focusName, engBtn, presetBtn, feelBtn);
+  const morphBtn = button('◐', () => session.toggleMorph(), 'morphbtn');
+  morphBtn.title = 'MORPH: knobs A and B reshape the sound';
+  const focusbar = h('div.focusbar', {}, focusName, engBtn, presetBtn, morphBtn, feelBtn);
   const bandWin = win('The Slug Band', [band, focusbar], { cls: 'span' });
 
   // ---- Knobs + buttons
@@ -140,6 +142,9 @@ export function bandPage({ session }) {
       presetBtn.textContent = `${ENGINES[f.slot.engine].presets[f.slot.preset].name} ▸`;
     }
     feelBtn.style.display = f.id === 'harmony' || f.id === 'bass' ? '' : 'none';
+    morphBtn.style.display = f.slot ? '' : 'none';
+    morphBtn.classList.toggle('on', st.morph);
+    morphBtn.textContent = st.morph ? '◐ MORPH' : '◐';
     feelBtn.textContent = f.id === 'harmony' ? `PLAY: ${f.harmonyMode}` : f.id === 'bass' ? `FOLLOW: ${f.bassMode}` : '';
     knobs.forEach((k) => k.update());
     latchBtn.classList.toggle('on', st.players[2].mode === 'FOLLOW');

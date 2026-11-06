@@ -91,6 +91,24 @@ for (const pi of [0, 1, 2, 3]) {
     R.engines[`${pi}:${name}`] = await level(page, 450);
   }
 }
+// MORPH knobs fully up on every engine
+R.morph = await page.evaluate(async () => {
+  const { session, app } = window.__slug;
+  const an = app.audio.analyser; const buf = new Float32Array(an.fftSize);
+  const res = {};
+  session.state.morph = true;
+  for (let e = 0; e < 7; e++) {
+    session.cycleEngine(0);
+    session.focus(0);
+    session.knob(4, 1); session.knob(5, 1);
+    let pk = 0, bad = false;
+    const end = performance.now() + 350;
+    while (performance.now() < end) { an.getFloatTimeDomainData(buf); for (const x of buf) { if (!Number.isFinite(x)) bad = true; pk = Math.max(pk, Math.abs(x)); } await new Promise((r) => setTimeout(r, 20)); }
+    res[session.state.players[0].slot.engine] = bad ? -1 : +pk.toFixed(2);
+  }
+  session.state.morph = false;
+  return res;
+});
 // bass modes
 for (let m = 0; m < 6; m++) await page.evaluate(() => window.__slug.session.cycleFeel(2));
 // harmony modes
