@@ -163,6 +163,20 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 }
 .toast.show { opacity: 1; }
 
+/* ---------------------------------------------------------- chord history --- */
+.hist { display: flex; align-items: center; gap: 3px; flex: 1; min-width: 0; margin-left: 6px; align-self: center; }
+.hist .bevel.sm { min-height: 22px; padding: 2px 6px; }
+.hchips { flex: 1; min-width: 0; display: flex; align-items: center; gap: 0; overflow: hidden; }
+.hchip {
+  flex: 0 1 auto; min-width: 0; font-family: var(--vt); font-size: 17px; line-height: 1; padding: 1px 4px;
+  border: 2px solid var(--ink); background: var(--paper); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hchip + .hchip { margin-left: 8px; position: relative; overflow: visible; }
+.hchip + .hchip::before { content: ""; position: absolute; left: -10px; top: 50%; width: 8px; height: 2px; background: var(--slime); }
+.hchip.cur { background: var(--slime); }
+.hchip.down { transform: translate(1px, 1px); }
+.hempty { font-size: 15px; color: var(--shade2); padding-left: 4px; white-space: nowrap; }
+
 /* ---------------------------------------------------------- band --- */
 .band { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
 .member {

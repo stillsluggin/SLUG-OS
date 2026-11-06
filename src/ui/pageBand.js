@@ -25,7 +25,32 @@ export function bandPage({ session }) {
     altEls[t] = a;
     alts.append(a);
   }
-  const nowWin = win('Now Playing', [h('div.now-row', {}, name, roman, bends), best, alts], { cls: 'span' });
+  // Chord History: BACK / FORWARD and a little slime trail of recent chords.
+  const chips = h('div.hchips');
+  const backBtn = button('◂', () => session.historyBack(), 'sm');
+  const fwdBtn = button('▸', () => session.historyForward(), 'sm');
+  backBtn.title = 'Back to the previous chord ( [ )';
+  fwdBtn.title = 'Forward ( ] )';
+  const hist = h('div.hist', {}, backBtn, chips, fwdBtn);
+  const nowWin = win('Now Playing', [h('div.now-row', {}, name, roman, hist), best, alts], { cls: 'span' });
+  let lastTrailKey = '';
+  function renderTrail() {
+    const t = session.trail;
+    const win5 = t.window(5);
+    const key = `${t.entries.length}|${t.pos}|${win5.map((e) => e.name).join()}`;
+    if (key === lastTrailKey) return;
+    lastTrailKey = key;
+    chips.innerHTML = '';
+    if (!win5.length) chips.append(h('span.hempty', { text: 'your chords leave a trail here' }));
+    for (const e of win5) {
+      const c = h('button.hchip', { type: 'button', title: `${e.roman} · tap to play again` }, e.name);
+      if (e.current) c.classList.add('cur');
+      tap(c, () => session.historyGo(e.index));
+      chips.append(c);
+    }
+    backBtn.disabled = t.pos <= 0;
+    fwdBtn.disabled = !t.browsing;
+  }
 
   // ---- The band
   const band = h('div.band');
@@ -84,6 +109,7 @@ export function bandPage({ session }) {
     name.textContent = m.chordName || (m.keySelect ? 'pick a key…' : 'play a chord');
     name.classList.toggle('idle', !m.chordName);
     roman.textContent = m.roman;
+    renderTrail();
     bends.textContent = m.bends.map((b) => BEND_INFO[b].arrow + BEND_INFO[b].label).join(' ');
     best.querySelector('.nm').textContent = m.best.name;
     best.querySelector('.why').textContent = `${m.best.roman} · ${m.best.why}`;

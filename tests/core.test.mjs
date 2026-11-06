@@ -212,3 +212,32 @@ test('xy pad: effects, combos, repeat lengths, snap back', () => {
   assert.ok(snapBack(0.8, 0.1) < 0.8);
   assert.equal(snapBack(0.8, 0.3), 0);
 });
+
+import { createTrail } from '../src/core/trail.js';
+
+test('chord history: back, forward, replay exact voicing, bends remembered', () => {
+  const out = fakeOut();
+  const s = createSession(out, { rng });
+  const k = (deg) => KEYS.find((x) => x.section === 'chord' && x.degree === deg).index;
+  for (const d of [0, 3, 4]) { s.keyDown(k(d)); s.keyUp(k(d)); }
+  s.setBend('seventh', true); s.setBend('seventh', false); // Am -> Am7 is remembered
+  assert.deepEqual(s.trail.entries.map((e) => e.name), ['Dm', 'Gm', 'Am', 'Am7']);
+  const gmVoicing = s.trail.entries[1].voicing;
+  s.historyBack(); assert.equal(s.screenModel().chordName, 'Am');
+  s.historyBack(); assert.equal(s.screenModel().chordName, 'Gm');
+  assert.deepEqual(s.state.voicing, gmVoicing, 'exact voicing replayed');
+  // Next Chord works from the chord you went back to
+  assert.equal(s.screenModel().best.name, 'C9');
+  s.historyForward(); assert.equal(s.screenModel().chordName, 'Am');
+  // Playing something new while back in history adds it at the end; nothing is lost
+  s.historyBack();
+  s.keyDown(k(5)); s.keyUp(k(5));
+  assert.deepEqual(s.trail.entries.map((e) => e.name), ['Dm', 'Gm', 'Am', 'Am7', 'Bb']);
+  s.historyGo(0); assert.equal(s.screenModel().chordName, 'Dm');
+  // saved with the session
+  const s2 = createSession(fakeOut(), { rng });
+  s2.load(JSON.parse(JSON.stringify(s.serialize())));
+  assert.equal(s2.trail.entries.length, 5);
+  const t = createTrail();
+  assert.equal(t.back(), null);
+});

@@ -2,6 +2,14 @@
 
 All notable changes to Slug OS, newest first. Written for players, not programmers.
 
+## Unreleased (branch claude/history-capture)
+
+### Added
+- **Chord History**: Slug OS remembers every chord you play, with its bends and
+  exact voicing. ◂ / ▸ next to the chord name step back and forward and play
+  the chord again; the little slime trail shows your last five chords, tap one
+  to play it. Saved between visits. Keys `[` and `]`.
+
 ## Unreleased (branch claude/slug-os-v2)
 
 ### Added

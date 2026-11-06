@@ -40,6 +40,14 @@ await page.evaluate(() => { const s = window.__slug.session; s.keyDown(5); s.key
 R.chord = await page.textContent('.now-name');
 R.chordLevel = await level(page, 400);
 await page.keyboard.down('ArrowUp'); await page.waitForTimeout(60); R.bent = await page.textContent('.now-name'); await page.keyboard.up('ArrowUp');
+// chord history
+await page.evaluate(() => { const s = window.__slug.session; for (const i of [0, 9, 4]) { s.keyDown(i); s.keyUp(i); } });
+await page.waitForTimeout(100);
+R.trailChips = await page.$$eval('.hchip', (els) => els.map((e) => e.textContent));
+await page.tap('.hist .bevel:first-child'); await page.waitForTimeout(100);
+R.afterBack = await page.textContent('.now-name');
+await page.tap('.hchip >> nth=0'); await page.waitForTimeout(100);
+R.afterChip = await page.textContent('.now-name');
 await page.screenshot({ path: outDir + 'band.png' });
 
 // all players follow + band plays

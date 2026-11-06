@@ -25,6 +25,7 @@ import { bassRoot } from './bass.js';
 import { drumEvents, generateBoomBap, LANES } from './drums.js';
 import { createSeq, seqPosition, seqChordAt, hasChords, autoFill } from './chordSeq.js';
 import { KEYS, KNOBS, BEND_INFO } from './controls.js';
+import { createTrail } from './trail.js';
 
 const DEFAULT_PLAYERS = [
   { id: 'harmony', mode: 'FOLLOW', slot: engineSlot('keys', 0), level: 0.8, harmonyMode: 'COMP' },
@@ -69,6 +70,7 @@ export function createSession(out, { rng = Math.random } = {}) {
   let chordStart = false;
   let keyChosenWhileHeld = false;
   const mem = { bass: {}, melody: {}, soloist: {} };
+  let trail = createTrail(); // Chord History
   const listeners = new Set();
 
   const emit = (what = 'state', data) => listeners.forEach((fn) => fn(what, state, data));
@@ -101,7 +103,7 @@ export function createSession(out, { rng = Math.random } = {}) {
   }
 
   /** Recompute the sounding chord from the base + bends and play the change. */
-  function refresh({ fresh = false, vel = 0.8, quiet = false } = {}) {
+  function refresh({ fresh = false, vel = 0.8, quiet = false, voicing: exact = null } = {}) {
     const prev = state.chord;
     const eff = state.base && state.base !== 'rest' ? applyBends(state.base, state.bends, state.key) : null;
     if (!eff) {
@@ -111,7 +113,8 @@ export function createSession(out, { rng = Math.random } = {}) {
       return;
     }
     if (!fresh && prev && sameChord(prev, eff)) { emit(); return; }
-    const voicing = voiceChord(eff, state.voicing);
+    // Replaying from Chord History uses the exact notes you played (unless you're bending it now).
+    const voicing = exact && !state.bends.size ? [...exact] : voiceChord(eff, state.voicing);
     const oldV = prev ? state.voicing : [];
     state.chord = eff;
     state.voicing = voicing;
@@ -167,7 +170,36 @@ export function createSession(out, { rng = Math.random } = {}) {
     held++;
     setBase(chord);
     refresh({ fresh: true, vel });
+    remember();
   }
+
+  // ------------------------------------------------------------ chord history
+
+  /** Add the chord that's sounding now (with its bends and exact voicing) to the history. */
+  function remember() {
+    if (!state.chord) return;
+    trail.push({
+      chord: { ...state.chord, ext: [...state.chord.ext] },
+      voicing: [...state.voicing],
+      name: chordName(state.chord, state.key),
+      roman: romanOf(state.chord, state.key),
+    });
+  }
+
+  /** Play a chord from the history again, exactly as it was. */
+  function replay(entry) {
+    if (!entry) return false;
+    chordStack.length = 0;
+    held = 0;
+    setBase({ ...entry.chord, ext: [...entry.chord.ext] });
+    refresh({ fresh: true, vel: 0.8, voicing: entry.voicing });
+    toast(`◂ ${entry.name}`);
+    return true;
+  }
+
+  function historyBack() { if (!replay(trail.back())) toast('START OF HISTORY'); emit(); }
+  function historyForward() { if (!replay(trail.forward())) toast('NEWEST CHORD'); emit(); }
+  function historyGo(i) { replay(trail.go(i)); emit(); }
 
   function chordUp(src) {
     const i = chordStack.findIndex((e) => e.src === src);
@@ -265,6 +297,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     if (on === state.bends.has(name)) return;
     if (on) state.bends.add(name); else state.bends.delete(name);
     refresh({ vel: 0.75 });
+    if (on) remember(); // a bent chord is a chord you played
     if (on) toast(`${BEND_INFO[name].arrow} ${BEND_INFO[name].label}`);
   }
 
@@ -581,6 +614,7 @@ export function createSession(out, { rng = Math.random } = {}) {
       v: 1, key: state.key, style: state.style, tempo: state.tempo, swing: state.swing, human: state.human,
       players: state.players.map((p) => ({ id: p.id, mode: p.mode, slot: p.slot, level: p.level, harmonyMode: p.harmonyMode, bassMode: p.bassMode })),
       seq: state.seq, drums: state.drums,
+      trail: trail.toJSON(),
     };
   }
 
@@ -594,6 +628,7 @@ export function createSession(out, { rng = Math.random } = {}) {
       if (p.slot && !ENGINES[p.slot.engine]) p.slot = engineSlot('keys');
     });
     if (d.seq) state.seq = { ...createSeq(), ...d.seq, rec: false };
+    if (d.trail) trail = createTrail(d.trail);
     if (d.drums?.pattern) state.drums = { ...state.drums, ...d.drums };
     state.players.forEach((p, i) => out.setPlayer(i, p));
     refreshSuggestions();
@@ -609,6 +644,8 @@ export function createSession(out, { rng = Math.random } = {}) {
     focus, cycleMode, cycleEngine, cyclePreset, cycleFeel, toggleBassLatch, setPlaying,
     knob, knobValue, knobLabel, knobText,
     seqSelect, seqSet, seqClear, seqAuto, toggleMetronome,
+    historyBack, historyForward, historyGo,
+    get trail() { return trail; },
     setPattern, toggleDrumStep, generateDrums,
     step, stepDur,
     screenModel, chordKeyLabels, serialize, load,

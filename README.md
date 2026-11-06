@@ -55,6 +55,14 @@ loops); the metronome stays clean.
 | High white | the strum plate: plays the **focused player** (tap a snail to focus it). Notes always fit the chord. Slide across them. With the DRUMMER focused they play drums |
 | High black | NEXT (best next chord), NOST, EMO, CALM, SURP, REST |
 
+### Chord History
+
+Every chord you play (with its bends and exact voicing) leaves a trail next
+to the chord name. **◂** steps back and plays the previous chord again, **▸**
+steps forward, and tapping a chord in the trail plays it. Next Chord works from
+whichever chord you go back to. Going back never deletes anything: a new chord
+is added to the end. Keys: `[` back, `]` forward.
+
 ### The Slug Band
 
 HARMONY (chords: COMP, SUSTAIN, STRUM, ARP), MELODY (short motifs with call
