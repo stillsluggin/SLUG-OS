@@ -140,6 +140,17 @@ export function createOutput(ac) {
   let timer = null;
   let stepN = 0;
   let nextTime = 0;
+  let metro = false;
+  function runClock(on, reset = false) {
+    if (!on) { clearInterval(timer); timer = null; return; }
+    if (reset || !timer) {
+      clearInterval(timer);
+      stepN = 0;
+      nextTime = ac.currentTime + 0.06;
+      tick();
+      timer = setInterval(tick, 25);
+    }
+  }
   function tick() {
     const ahead = ac.currentTime + 0.12;
     while (nextTime < ahead) {
@@ -172,19 +183,35 @@ export function createOutput(ac) {
     },
     transport(on) {
       playing = on;
-      clearInterval(timer);
-      timer = null;
-      if (on) {
-        stepN = 0;
-        nextTime = ac.currentTime + 0.06;
-        tick();
-        timer = setInterval(tick, 25);
-      } else {
+      if (on) runClock(true, true);
+      else {
         const t = ac.currentTime;
         active.filter((a) => a.start > t).forEach((a) => a.v.kill(t));
         for (const l of loops.values()) stopLoopNow(l, t);
         loops.clear();
+        if (!metro) runClock(false);
       }
+    },
+    /** Metronome on/off. It keeps the clock running even while the band is stopped. */
+    metronome(on) {
+      metro = on;
+      if (on && !timer) runClock(true, true);
+      if (!on && !playing) runClock(false);
+    },
+    /** One click: a short pixel "tick", higher on beat 1. Bypasses the XY effects. */
+    click(accent, time) {
+      const t = Math.max(time ?? ac.currentTime, ac.currentTime);
+      const o = ac.createOscillator();
+      o.type = 'square';
+      o.frequency.value = accent ? 1760 : 1175;
+      const g = ac.createGain();
+      g.gain.setValueAtTime(accent ? 0.16 : 0.1, t);
+      g.gain.exponentialRampToValueAtTime(0.0001, t + 0.045);
+      const lp = ac.createBiquadFilter();
+      lp.frequency.value = 4000;
+      o.connect(lp).connect(g).connect(master.direct);
+      o.start(t);
+      o.stop(t + 0.06);
     },
   };
 

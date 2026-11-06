@@ -21,7 +21,7 @@ const rng = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
 function fakeOut() {
   const log = [];
   const rec = (name) => (...a) => log.push([name, ...a]);
-  return { log, now: () => 0, noteOn: rec('on'), noteOff: rec('off'), play: rec('play'), releasePlayer: rec('rel'), cutPlayer: rec('cut'), drum: rec('drum'), setPlayer() {}, bar: rec('bar'), transport: rec('transport') };
+  return { log, now: () => 0, noteOn: rec('on'), noteOff: rec('off'), play: rec('play'), releasePlayer: rec('rel'), cutPlayer: rec('cut'), drum: rec('drum'), setPlayer() {}, bar: rec('bar'), transport: rec('transport'), metronome: rec('metro'), click: rec('click') };
 }
 
 test('chords and bends', () => {
@@ -144,4 +144,20 @@ test('engines: seven, two knobs each, presets', () => {
     assert.equal(ENGINES[id].knobs.length, 2);
     assert.ok(ENGINES[id].presets.length >= 3);
   }
+});
+
+test('metronome clicks every beat, accent on 1, even when stopped', () => {
+  const out = fakeOut();
+  const s = createSession(out, { rng });
+  s.toggleMetronome();
+  assert.ok(out.log.some((e) => e[0] === 'metro' && e[1] === true));
+  for (let n = 0; n < 16; n++) s.step(n, n * 0.1);
+  const clicks = out.log.filter((e) => e[0] === 'click');
+  assert.equal(clicks.length, 4);
+  assert.deepEqual(clicks.map((c) => c[1]), [true, false, false, false]);
+  assert.equal(out.log.filter((e) => e[0] === 'play').length, 0, 'band stays quiet while stopped');
+  s.toggleMetronome();
+  out.log.length = 0;
+  for (let n = 16; n < 32; n++) s.step(n, n * 0.1);
+  assert.equal(out.log.filter((e) => e[0] === 'click').length, 0);
 });

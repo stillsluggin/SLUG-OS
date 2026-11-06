@@ -43,6 +43,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     swing: 0.4,
     human: 0.35,
     playing: false,
+    metronome: false,
     step: 0,
     players: DEFAULT_PLAYERS.map((p) => ({ ...p, slot: p.slot && { ...p.slot, knobs: [...p.slot.knobs] } })),
     focus: 0,
@@ -343,6 +344,14 @@ export function createSession(out, { rng = Math.random } = {}) {
     toast(on ? 'PLAY' : 'STOP');
   }
 
+  /** Metronome: one press on, one press off. Follows TEMPO. */
+  function toggleMetronome(on = !state.metronome) {
+    state.metronome = on;
+    out.metronome(on);
+    toast(on ? `CLICK ON · ${state.tempo} BPM` : 'CLICK OFF');
+    emit();
+  }
+
   // ------------------------------------------------------------ players
 
   function syncPlayer(id) {
@@ -489,7 +498,9 @@ export function createSession(out, { rng = Math.random } = {}) {
 
   function step(n, time) {
     state.step = n;
-    if (!state.playing) return;
+    // Metronome: a click on every beat, accented on beat 1.
+    if (state.metronome && n % 4 === 0) out.click(n % 16 === 0, time);
+    if (!state.playing) { emit('step'); return; }
     const s = n % 16;
     const bar = Math.floor(n / 16);
     if (s === 0) out.bar(bar, time);
@@ -597,7 +608,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     keyDown, keyUp, buttonDown, buttonUp, pickDown, pickUp, setBend,
     focus, cycleMode, cycleEngine, cyclePreset, cycleFeel, toggleBassLatch, setPlaying,
     knob, knobValue, knobLabel, knobText,
-    seqSelect, seqSet, seqClear, seqAuto,
+    seqSelect, seqSet, seqClear, seqAuto, toggleMetronome,
     setPattern, toggleDrumStep, generateDrums,
     step, stepDur,
     screenModel, chordKeyLabels, serialize, load,

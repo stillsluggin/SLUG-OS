@@ -12,7 +12,8 @@ slimmed-down port to the M-VAVE FM-1 on Felucca: see [docs/porting.md](docs/port
 
 Open the page and tap **TAP TO START**. iPhone: if you hear nothing, flip the
 silent switch off and turn the volume up. Press **PLAY** and the band starts on
-your home chord.
+your home chord. Tap **♩** (top bar) for the metronome: a click on every beat,
+following TEMPO, even when the band is stopped.
 
 ## The pages
 
@@ -79,7 +80,7 @@ flips major/minor), REC (write chords into the sequencer), PLAYER (next focus).
 
 `Z`–`M` chords · `S D G H J` or arrows bend (up+right = 9th) · `Q`–`O` strum ·
 `2 3 5 6 7` next chords · `9` rest · `Space` play · `L` latch · `K` key ·
-`P` player · `` ` `` rec. On DRUMS `1`–`6` play the drums; on SAMPLER
+`P` player · `` ` `` rec · `;` metronome. On DRUMS `1`–`6` play the drums; on SAMPLER
 `1234 QWER ASDF ZXCV` play the pads. Web MIDI (Chrome/Edge/Android): notes
 C3–D5 = the 27 keys, CC 70–76 = knobs, MIDI start/stop = PLAY.
 

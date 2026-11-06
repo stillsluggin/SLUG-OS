@@ -27,6 +27,11 @@ await page.tap('#boot');
 await page.waitForFunction(() => window.__slug && window.__slug.ac.state === 'running', null, { timeout: 8000 });
 await page.waitForTimeout(300);
 R.rest = await level(page, 200);
+await page.tap('.clickbtn');
+R.metronome = await level(page, 1500);
+await page.tap('.clickbtn');
+await page.waitForTimeout(300);
+R.metronomeOff = await level(page, 800);
 
 // chord + bend
 const key = (i) => page.locator(`.key[data-i="${i}"]`);

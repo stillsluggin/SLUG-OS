@@ -53,12 +53,14 @@ const trailSnail = spriteImg('slug', 2);
 const keyPill = h('span.pill');
 const bpmPill = h('span.pill');
 const playBtn = h('button.bevel.playbtn', { type: 'button' });
+const clickBtn = h('button.bevel.sm.clickbtn', { type: 'button', 'aria-label': 'Metronome', title: 'Metronome (;)' }, '♩');
+tap(clickBtn, () => session.toggleMetronome());
 tap(playBtn, () => { session.buttonDown('play'); session.buttonUp('play'); });
 tap(keyPill, () => { session.buttonDown('key'); session.buttonUp('key'); });
 tap(bpmPill, () => setPage('drums'));
 const menubar = h('div.menubar', {},
   h('span.logo', {}, spriteImg('snail', 1), 'SLUG OS'), keyPill, bpmPill,
-  h('span.trail', {}, trailFill, trailSnail), playBtn);
+  h('span.trail', {}, trailFill, trailSnail), clickBtn, playBtn);
 
 const pages = { band: bandPage(app), seq: seqPage(app), drums: drumsPage(app), sampler: samplerPage(app) };
 const pagesEl = h('div.pages', {}, ...Object.values(pages).map((p) => p.el));
@@ -91,6 +93,7 @@ function renderMenubar() {
   playBtn.innerHTML = '';
   playBtn.append(spriteImg(m.playing ? 'stop' : 'play', 2), m.playing ? 'STOP' : 'PLAY');
   playBtn.classList.toggle('on', m.playing);
+  clickBtn.classList.toggle('on', st.metronome);
 }
 
 function renderTrail() {
@@ -287,6 +290,7 @@ window.addEventListener('keydown', (ev) => {
   const k = ev.key.length === 1 ? ev.key.toLowerCase() : ev.key;
   if (ev.repeat) { if (k in BTN_KEYS || k.startsWith('Arrow')) ev.preventDefault(); return; }
   if (k in BTN_KEYS) { session.buttonDown(BTN_KEYS[k]); ev.preventDefault(); return; }
+  if (k === ';') { session.toggleMetronome(); return; }
   if (page === 'sampler' && pages.sampler.keyDown(k)) { ev.preventDefault(); return; }
   if (page === 'drums' && '123456'.includes(k)) { out.drum(LANES[Number(k) - 1], 0.9, out.now()); return; }
   if (k in KEYMAP) { session.keyDown(KEYMAP[k], 0.8); ev.preventDefault(); }

@@ -5,6 +5,9 @@ All notable changes to Slug OS, newest first. Written for players, not programme
 ## Unreleased (branch claude/slug-os-v2)
 
 ### Added
+- **Metronome**: tap ♩ in the top bar (or press `;`). Clicks every beat,
+  louder on beat 1, follows TEMPO, works with the band stopped, and skips
+  the effects so it stays clean.
 - **Project docs**: CLAUDE.md (the full brief plus working notes) and this changelog.
 
 ## v2 — the Slug Band (first build of the new plan)
