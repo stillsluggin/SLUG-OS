@@ -202,8 +202,19 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .knobs { display: grid; grid-template-columns: repeat(7, 1fr); gap: 2px; }
 .knob { display: flex; flex-direction: column; align-items: center; gap: 2px; touch-action: none; cursor: ns-resize; min-width: 0; }
 .knob .dial { position: relative; width: 42px; height: 42px; }
-.knob .dial img { position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%); }
-.knob .dot { position: absolute; width: 4px; height: 4px; background: var(--shade); left: 50%; top: 50%; margin: -2px; }
+.knob .dot { position: absolute; width: 4px; height: 4px; background: var(--shade); margin: -2px 0 0 -2px; }
+.knob .cap {
+  position: absolute; inset: 16%; border-radius: 50%; border: 2px solid var(--ink);
+  background: radial-gradient(circle at 38% 30%, #fffaf0 0, var(--paper) 45%, var(--shade) 100%);
+  box-shadow: 0 3px 0 var(--ink), inset 0 -2px 0 rgba(0,0,0,.12);
+}
+.knob .grip { position: absolute; inset: -2px; border-radius: 50%;
+  background: repeating-conic-gradient(var(--ink) 0 5deg, transparent 5deg 22.5deg);
+  -webkit-mask: radial-gradient(circle, transparent 66%, #000 68%); mask: radial-gradient(circle, transparent 66%, #000 68%); opacity: .35; }
+.knob .rot { position: absolute; inset: 0; }
+.knob .ptr { position: absolute; left: 50%; top: 6%; width: 3px; height: 38%; margin-left: -1.5px; background: var(--ink); border-radius: 2px; }
+.knob .hub { position: absolute; left: 50%; top: 50%; width: 22%; height: 22%; transform: translate(-50%, -50%); border-radius: 50%; background: var(--shell); border: 1px solid var(--shell-d); }
+.knob.active .cap { box-shadow: 0 1px 0 var(--ink), inset 0 -1px 0 rgba(0,0,0,.12); margin-top: 2px; }
 .knob .dot.lit { background: var(--slime); box-shadow: 0 0 0 1px var(--moss-d); }
 .knob .kl { font-family: var(--px); font-size: 7px; white-space: nowrap; overflow: hidden; max-width: 100%; }
 .knob.active .kl { color: var(--shell-d); }

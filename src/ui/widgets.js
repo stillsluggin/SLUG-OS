@@ -55,14 +55,19 @@ export const button = (label, fn, cls = '') => tap(h(`button.bevel${cls ? `.${cl
  * slime dots shows the value, like an old LED ring.
  */
 export function knob({ label, get, set, steps = 0, size = 2 }) {
-  const dial = h('div.dial');
-  dial.append(spriteImg('shell', size));
+  // A chunky raised cap with a ridged edge and a pointer you can see turn,
+  // a shell-orange centre, and a ring of slime dots showing the value.
+  const ptr = h('i.ptr');
+  const rot = h('i.rot', {}, ptr);
+  const cap = h('div.cap', {}, h('i.grip'), rot, h('i.hub'));
+  const dial = h('div.dial', {}, cap);
   const N = 11;
   const dots = [];
   for (let i = 0; i < N; i++) {
     const a = (-135 + (270 * i) / (N - 1)) * (Math.PI / 180);
     const d = h('i.dot');
-    d.style.transform = `translate(${Math.sin(a) * 19}px, ${-Math.cos(a) * 19}px)`;
+    d.style.left = `${50 + Math.sin(a) * 47}%`;
+    d.style.top = `${50 - Math.cos(a) * 47}%`;
     dial.append(d);
     dots.push(d);
   }
@@ -94,6 +99,7 @@ export function knob({ label, get, set, steps = 0, size = 2 }) {
     const v = get();
     const lit = Math.round(v * (N - 1));
     dots.forEach((d, i) => d.classList.toggle('lit', i <= lit));
+    rot.style.transform = `rotate(${-135 + v * 270}deg)`;
     kl.textContent = typeof label === 'function' ? label() : label;
     el.setAttribute('aria-valuenow', Math.round(v * 100));
     el.setAttribute('aria-label', kl.textContent);
