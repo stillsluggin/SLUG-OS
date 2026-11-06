@@ -2,7 +2,7 @@
 // and end on the waveform, play 16 pads, and lazy-chop a pad into a CHOP BANK.
 
 import { h, win, button, tap, knob } from './widgets.js';
-import { PADS_PER_PAGE, PLAY_MODES, assignSample, padRegion } from '../core/sampler.js';
+import { PADS_PER_PAGE, PLAY_MODES, PITCH_MODES, WARP_MODES, assignSample, padRegion, playbackPlan, timeRatio } from '../core/sampler.js';
 import { equalChops, markersToChops, detectTransients } from '../core/chops.js';
 import { peaks } from '../storage/media.js';
 
@@ -73,16 +73,35 @@ export function samplerPage(app) {
     ['RELEASE', 'release', (v) => 0.01 + v * 1.5, (x) => (x - 0.01) / 1.5],
     ['TONE', 'tone', (v) => v, (x) => x],
     ['PITCH', 'pitch', (v) => Math.round(v * 24 - 12), (x) => (x + 12) / 24],
+    // STRETCH: 0.5x (half as long, faster) .. 1x .. 2x (twice as long, slower).
+    ['STRETCH', 'stretch', (v) => +Math.pow(2, v * 2 - 1).toFixed(3), (x) => (Math.log2(x || 1) + 1) / 2],
     ['GAIN', 'gain', (v) => v * 1.2, (x) => x / 1.2],
   ];
+  const knobLabel = (label, key) => {
+    const p = pad();
+    if (key === 'pitch') return `${label} ${p.pitch > 0 ? '+' : ''}${p.pitch}`;
+    if (key === 'stretch') return p.warpToBpm ? 'STR SYNC' : `STR ${(p.stretch || 1).toFixed(2)}x`;
+    return label;
+  };
   const knobs = knobDefs.map(([label, key, to, from]) => knob({
-    label: () => (key === 'pitch' ? `${label} ${pad()[key] > 0 ? '+' : ''}${pad()[key]}` : label),
+    label: () => knobLabel(label, key),
     get: () => Math.max(0, Math.min(1, from(pad()[key]))),
     set: (v) => { setPad({ ...pad(), [key]: to(v) }, true); },
   }));
+  // Pitch and stretch algorithms
+  const cycle = (list, v) => list[(list.indexOf(v) + 1) % list.length];
+  const pitchBtn = button('', () => setPad({ ...pad(), pitchMode: cycle(PITCH_MODES, pad().pitchMode) }), 'sm');
+  const warpBtn = button('', () => setPad({ ...pad(), warp: cycle(WARP_MODES, pad().warp) }), 'sm');
+  const syncBtn = button('WARP→BPM', () => setPad({ ...pad(), warpToBpm: !pad().warpToBpm }), 'sm');
+  const bpmLab = h('span.lab');
+  const bpmSet = (f) => { const p = pad(); setPad({ ...p, srcBpm: Math.max(40, Math.min(240, Math.round(f(p.srcBpm || 90)))) }); };
+  const algoInfo = h('p.help');
   const padWin = win('Pad', [
     h('div.row', {}, modeBtn, revBtn, bankBtn, clearBtn),
+    h('div.row', { style: 'margin-top:6px' }, h('span.lab', { text: 'PITCH' }), pitchBtn, h('span.lab', { text: 'WARP' }), warpBtn),
+    h('div.row', { style: 'margin-top:4px' }, syncBtn, h('span.lab', { text: 'SOURCE' }), button('½', () => bpmSet((b) => b / 2), 'sm'), button('−', () => bpmSet((b) => b - 1), 'sm'), bpmLab, button('+', () => bpmSet((b) => b + 1), 'sm'), button('×2', () => bpmSet((b) => b * 2), 'sm')),
     h('div.mini-knobs', { style: 'margin-top:6px' }, knobs.map((k) => k.el)),
+    algoInfo,
   ]);
 
   // ---- Chop tools
@@ -110,10 +129,25 @@ export function samplerPage(app) {
   const el = h('div.page.cols', {}, sourceWin, padsWin, padWin);
 
   // ---- behaviour
+  let renderTimer = null;
   function setPad(p, quiet = false) {
     app.pads[sel] = p;
     app.savePads();
-    if (!quiet) update(); else { knobs.forEach((k) => k.update()); }
+    if (!quiet) update(); else { knobs.forEach((k) => k.update()); updateAlgo(); }
+    // Pre-render stretched sound shortly after you stop turning, so the next press is instant.
+    clearTimeout(renderTimer);
+    renderTimer = setTimeout(() => { if (buffer) app.prerenderPad(buffer, pad()); }, 350);
+  }
+  function updateAlgo() {
+    const p = pad();
+    const T = timeRatio(p, app.session.state.tempo);
+    const plan = playbackPlan(p, app.session.state.tempo);
+    const what = {
+      none: p.warp === 'REPITCH' ? 'tape-style: speed and pitch move together' : 'untouched',
+      smooth: 'smooth stretch (melodic)',
+      beats: 'beats stretch (drums)',
+    }[plan.algo];
+    algoInfo.textContent = p.sampleId ? `Length ×${T.toFixed(2)} · ${what}${p.warpToBpm ? ` · ${p.srcBpm} → ${app.session.state.tempo} BPM` : ''}` : '';
   }
   function setChops(markersOrChops, isChops = false) {
     const p = pad();
@@ -160,9 +194,10 @@ export function samplerPage(app) {
     const b = await ensureBuffer();
     if (!b) return;
     const p = pad();
-    const r = padRegion(p, !whole && bankOpen ? selChop : null);
-    app.playRegion(b, { ...r, key: 'preview', gate: false, loop: false });
-    preview = { t0: app.now(), start: r.start, end: r.end, rate: Math.pow(2, (p.pitch || 0) / 12), reverse: p.reverse };
+    const chop = !whole && bankOpen ? selChop : null;
+    const r = padRegion(p, chop);
+    const plan = app.playPad(b, p, chop, 'preview', { gate: false, loop: false });
+    preview = { t0: app.now(), start: r.start, end: r.end, rate: plan ? plan.rate / plan.factor : 1, reverse: p.reverse };
     animate();
   }
 
@@ -173,8 +208,8 @@ export function samplerPage(app) {
       if (!p.bank || !p.bank.chops[i]) { update(); return; }
       const b = await ensureBuffer();
       const r = padRegion(p, i);
-      app.playRegion(b, { ...r, key: `chop${i}` });
-      preview = { t0: app.now(), start: r.start, end: r.end, rate: Math.pow(2, (p.pitch || 0) / 12), reverse: p.reverse };
+      const plan = app.playPad(b, p, i, `chop${i}`);
+      preview = { t0: app.now(), start: r.start, end: r.end, rate: plan ? plan.rate / plan.factor : 1, reverse: p.reverse };
       padEls[i].classList.add('down');
       animate(); update();
       return;
@@ -187,8 +222,8 @@ export function samplerPage(app) {
     if (!p.sampleId) return;
     const b = await ensureBuffer();
     const r = padRegion(p);
-    app.playRegion(b, { ...r, key: `pad${sel}` });
-    preview = { t0: app.now(), start: r.start, end: r.end, rate: Math.pow(2, (p.pitch || 0) / 12), reverse: p.reverse };
+    const plan = app.playPad(b, p, null, `pad${sel}`);
+    preview = { t0: app.now(), start: r.start, end: r.end, rate: plan ? plan.rate / plan.factor : 1, reverse: p.reverse };
     animate();
   }
   function padUp(i) {
@@ -281,6 +316,11 @@ export function samplerPage(app) {
   function update() {
     const p = pad();
     modeBtn.textContent = p.mode;
+    pitchBtn.textContent = p.pitchMode || 'RESAMPLE';
+    warpBtn.textContent = p.warp || 'REPITCH';
+    syncBtn.classList.toggle('on', !!p.warpToBpm);
+    bpmLab.textContent = p.srcBpm ? `${p.srcBpm}` : '—';
+    updateAlgo();
     revBtn.classList.toggle('on', p.reverse);
     bankBtn.classList.toggle('on', !!p.bank);
     bankBtn.textContent = p.bank ? (bankOpen ? 'CHOPS OPEN' : `OPEN CHOPS (${p.bank.chops.length})`) : 'CHOP BANK';

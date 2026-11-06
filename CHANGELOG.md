@@ -5,6 +5,12 @@ All notable changes to Slug OS, newest first. Written for players, not programme
 ## Unreleased (branch claude/slug-os-v2)
 
 ### Added
+- **Sampler pitch and stretch**: a STRETCH knob (0.5×–2×) and two new choices
+  per pad. PITCH: RESAMPLE (classic, speed and pitch together) or KEEP TIME
+  (pitch-shift that keeps timing). WARP: REPITCH (tape), BEATS (drums), SMOOTH
+  (melodic). WARP→BPM fits a loop to the band's tempo using its source BPM
+  (read from the file name or guessed from its length). Stretched sounds are
+  worked out once and remembered, so pads stay instant.
 - **Metronome**: tap ♩ in the top bar (or press `;`). Clicks every beat,
   louder on beat 1, follows TEMPO, works with the band stopped, and skips
   the effects so it stays clean.

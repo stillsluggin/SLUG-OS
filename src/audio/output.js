@@ -15,6 +15,7 @@ import { createTrip } from './engines/trip.js';
 import { createSiren } from './engines/siren.js';
 import { createDrumKit } from './drumkit.js';
 import { createSamplePlayer } from './samplePlayer.js';
+import { createRenderer } from './sampleRender.js';
 
 const MONO = new Set(['bass', 'melody', 'soloist']);
 const MAX_VOICES = 32;
@@ -27,6 +28,7 @@ export function createOutput(ac) {
   };
   const drums = createDrumKit(ac, master.input);
   const sampler = createSamplePlayer(ac, master.input);
+  const renderer = createRenderer(ac);
   const loopBus = ac.createGain();
   loopBus.connect(master.input);
 
@@ -220,6 +222,7 @@ export function createOutput(ac) {
     master,
     drums,
     sampler,
+    renderer,
     analyser: master.analyser,
     activeVoices: () => { prune(); return active.length; },
     bindClock({ step, stepDur }) { onStep = step; stepDurOf = stepDur; },

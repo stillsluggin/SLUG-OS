@@ -161,3 +161,42 @@ test('metronome clicks every beat, accent on 1, even when stopped', () => {
   for (let n = 16; n < 32; n++) s.step(n, n * 0.1);
   assert.equal(out.log.filter((e) => e[0] === 'click').length, 0);
 });
+
+import { stretchSmooth, stretchBeats } from '../src/audio/dsp.js';
+import { playbackPlan, emptyPad, assignSample } from '../src/core/sampler.js';
+
+const zeroCrossRate = (d, sr) => { let z = 0; for (let i = 1; i < d.length; i++) if ((d[i - 1] < 0) !== (d[i] < 0)) z++; return (z / 2) / (d.length / sr); };
+
+test('SMOOTH stretch keeps pitch and changes length', () => {
+  const sr = 22050;
+  const x = new Float32Array(sr); // 1 s of 220 Hz
+  for (let i = 0; i < x.length; i++) x[i] = Math.sin((2 * Math.PI * 220 * i) / sr);
+  for (const f of [0.5, 1.5, 2]) {
+    const [y] = stretchSmooth([x], f, sr);
+    assert.equal(y.length, Math.round(sr * f));
+    const hz = zeroCrossRate(y.subarray(2000, y.length - 2000), sr);
+    assert.ok(Math.abs(hz - 220) < 6, `factor ${f}: ${hz.toFixed(1)} Hz`);
+  }
+});
+
+test('BEATS stretch moves hits to their new times', () => {
+  const sr = 8000;
+  const x = new Float32Array(sr);
+  for (const t of [0, 0.25, 0.5, 0.75]) for (let i = 0; i < 200; i++) x[Math.round(t * sr) + i] = 1 - i / 200;
+  const [y] = stretchBeats([x], 2, sr, [0, 0.25, 0.5, 0.75]);
+  assert.equal(y.length, sr * 2);
+  for (const t of [0, 0.5, 1.0, 1.5]) assert.ok(y[Math.round(t * sr) + 10] > 0.8, `hit at ${t}s`);
+  assert.ok(Math.abs(y[Math.round(0.3 * sr)]) < 0.01, 'gap between hits when slowed');
+});
+
+test('pitch / warp planner', () => {
+  const pad = { ...emptyPad(0), pitch: 12 };
+  assert.deepEqual(playbackPlan(pad, 90), { algo: 'none', factor: 1, rate: 2 }); // classic resample
+  const kt = playbackPlan({ ...pad, pitchMode: 'KEEP TIME' }, 90);
+  assert.equal(kt.algo, 'smooth'); assert.equal(kt.factor / kt.rate, 1); // same length, higher pitch
+  const warp = playbackPlan({ ...emptyPad(0), warp: 'BEATS', warpToBpm: true, srcBpm: 90 }, 120);
+  assert.equal(warp.algo, 'beats'); assert.equal(warp.factor, 0.75); assert.equal(warp.rate, 1);
+  const tape = playbackPlan({ ...emptyPad(0), warpToBpm: true, srcBpm: 90 }, 120);
+  assert.equal(+tape.rate.toFixed(3), 1.333); // repitch: faster and higher
+  assert.equal(assignSample(emptyPad(0), { sampleId: 'x', name: 'loop 92bpm', duration: 2 }).srcBpm, 92);
+});

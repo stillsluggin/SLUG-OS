@@ -5,7 +5,7 @@ import { createSession } from '../core/session.js';
 import { KEYS, BASE_MIDI, KEY_COUNT } from '../core/controls.js';
 import { plateNotes } from '../core/players.js';
 import { LANE_LABELS, LANES } from '../core/drums.js';
-import { createPads } from '../core/sampler.js';
+import { createPads, padRegion, playbackPlan } from '../core/sampler.js';
 import { diatonicChord } from '../core/chord.js';
 import { noteName } from '../core/theory.js';
 import { startAudio, resumeAudio, getContext } from '../audio/context.js';
@@ -185,6 +185,31 @@ app.toggleLoop = async (l) => {
 
 app.bufferFor = (id) => (app.library ? app.library.bufferFor(id) : null);
 app.playRegion = (buf, o) => app.audio && app.audio.sampler.play(buf, o);
+
+/**
+ * Play a pad (or one of its chops) with its pitch and stretch settings.
+ * Stretch/keep-time modes render once (cached), then play like any sample.
+ * Returns the plan so the waveform playhead can follow.
+ */
+app.playPad = (buffer, pad, chopIndex, key, extra = {}) => {
+  if (!app.audio || !buffer) return null;
+  const r = padRegion(pad, chopIndex);
+  const plan = playbackPlan(pad, st.tempo);
+  let buf = buffer;
+  let region = { start: r.start, end: r.end };
+  if (plan.algo !== 'none') {
+    buf = app.audio.renderer.render(buffer, pad.sampleId, r.start, r.end, plan.algo, plan.factor, pad.srcBpm);
+    region = { start: 0, end: buf.duration };
+  }
+  app.audio.sampler.play(buf, { ...r, ...region, pitch: 0, rate: plan.rate, key, ...extra });
+  return plan;
+};
+/** Render ahead of time after a setting changes, so the next press is instant. */
+app.prerenderPad = (buffer, pad) => {
+  if (!app.audio || !buffer || !pad.sampleId) return;
+  const plan = playbackPlan(pad, st.tempo);
+  if (plan.algo !== 'none') app.audio.renderer.render(buffer, pad.sampleId, pad.start, pad.end, plan.algo, plan.factor, pad.srcBpm);
+};
 app.stopRegion = (key) => app.audio && app.audio.sampler.stop(key);
 
 app.loadSampleFile = async (file, onProgress) => {

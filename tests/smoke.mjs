@@ -80,6 +80,20 @@ await page.waitForFunction(() => /saved privately/.test(document.querySelector('
 R.samplerInfo = await page.$eval('.page.on .help', (e) => e.textContent);
 await page.evaluate(() => document.querySelector('.pads16 .pad').dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })));
 R.padLevel = await level(page, 300);
+// pitch & stretch algorithms
+R.stretch = await page.evaluate(async () => {
+  const { app } = window.__slug;
+  const pad = app.pads[0];
+  const buf = await app.bufferFor(pad.sampleId);
+  const res = {};
+  for (const [name, patch] of [['smooth2x', { warp: 'SMOOTH', stretch: 2 }], ['beats2x', { warp: 'BEATS', stretch: 2 }], ['keepTime+7', { pitchMode: 'KEEP TIME', pitch: 7 }], ['sync', { warp: 'SMOOTH', warpToBpm: true, srcBpm: 60 }]]) {
+    const t0 = performance.now();
+    const plan = app.playPad(buf, { ...pad, ...patch }, null, 'test');
+    res[name] = { algo: plan.algo, outSeconds: +((pad.end - pad.start) * plan.factor / plan.rate).toFixed(2), ms: Math.round(performance.now() - t0) };
+  }
+  return res;
+});
+R.stretchLevel = await level(page, 400);
 await page.click('text=CHOP BANK');
 await page.click('text=HITS');
 R.chops = await page.$$eval('.pads16 .pad.filled', (els) => els.length);

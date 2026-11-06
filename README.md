@@ -21,6 +21,21 @@ following TEMPO, even when the band is stopped.
 **SEQ**: the 16-step chord sequencer. **DRUMS**: kits, the boom bap pattern,
 finger drums, loops. **SAMPLER**: load, chop and play pads.
 
+### Sampler pads
+
+- **LOAD** an audio file or a video (its sound is pulled out), or **● REC MIC**.
+  Drag the orange handles on the waveform to set start and end.
+- **ONE-SHOT / GATE / LOOP**, **REVERSE**, and knobs ATTACK, RELEASE, TONE,
+  PITCH, STRETCH, GAIN.
+- **PITCH** algorithm: **RESAMPLE** (old-sampler style: higher = faster) or
+  **KEEP TIME** (pitch moves, timing stays).
+- **WARP** algorithm for STRETCH: **REPITCH** (tape style), **BEATS** (for
+  drums: hits move, each keeps its punch), **SMOOTH** (for melodic sounds).
+- **WARP→BPM** fits the pad to the band's tempo. SOURCE is the sample's own
+  tempo (read from names like "92bpm", else guessed); fix it with ½ − + ×2.
+- **CHOP BANK** turns a pad into its own set of chops: TAP in time, ÷4 ÷8 ÷16,
+  or HITS. The original audio is never changed.
+
 ### The keyboard (27 keys, laid out like the FM-1)
 
 | Keys | What they do |

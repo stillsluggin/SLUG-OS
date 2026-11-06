@@ -272,7 +272,7 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .wave .empty { position: absolute; inset: 0; display: grid; place-items: center; color: var(--slime); font-family: var(--px); font-size: 10px; text-align: center; padding: 6px; }
 .pads16 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; }
 .pads16 .pad { min-height: 52px; }
-.mini-knobs { display: grid; grid-template-columns: repeat(5, 1fr); gap: 2px; }
+.mini-knobs { display: grid; grid-template-columns: repeat(6, 1fr); gap: 2px; }
 .meter { height: 8px; border: 2px solid var(--ink); background: var(--paper); position: relative; flex: 1; min-width: 50px; }
 .meter i { position: absolute; inset: 0 auto 0 0; background: var(--slime); width: 0; }
 .deco { display: flex; gap: 6px; align-items: flex-end; justify-content: center; opacity: .9; }
