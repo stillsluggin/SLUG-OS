@@ -107,6 +107,49 @@ class Reverse extends AudioWorkletProcessor {
 }
 registerProcessor('slug-reverse', Reverse);
 
+// Loop repeater (STUTTER, BEAT REPEAT): when switched on, freezes
+// the last LENGTH seconds and loops them forward, with tiny fades at the joins so it
+// never clicks. Changing the length while it's on re-cuts the same start
+// point, so it "rolls" from 1/8 down to 1/64 like a DJ effects unit.
+class Repeat extends AudioWorkletProcessor {
+  static get parameterDescriptors() { return [
+    { name: 'on', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+    { name: 'length', defaultValue: 0.25, minValue: 0.005, maxValue: 2, automationRate: 'k-rate' },
+    { name: 'decay', defaultValue: 1, minValue: 0, maxValue: 1, automationRate: 'k-rate' },
+  ]; }
+  constructor() {
+    super();
+    this.N = Math.ceil(sampleRate * 2.5);
+    this.buf = [new Float32Array(this.N), new Float32Array(this.N)];
+    this.w = 0; this.on = false; this.start = 0; this.k = 0; this.mix = 0; this.gain = 1;
+  }
+  process(inputs, outputs, params) {
+    const inp = inputs[0], out = outputs[0];
+    const want = params.on[0] > 0.5;
+    const L = Math.max(64, Math.floor(params.length[0] * sampleRate));
+    const decay = params.decay[0];
+    if (want && !this.on) { this.on = true; this.start = (this.w - L + this.N) % this.N; this.k = 0; this.gain = 1; }
+    if (!want && this.on) this.on = false;
+    const N = this.N, fade = Math.min(96, L >> 3);
+    for (let i = 0; i < out[0].length; i++) {
+      this.mix += ((this.on ? 1 : 0) - this.mix) * 0.02;
+      const pos = this.k % L;
+      if (this.on && pos === 0 && this.k > 0) this.gain *= decay; // each repeat a little quieter (FADE)
+      const edge = Math.min(1, (pos + 1) / fade, (L - pos) / fade);
+      for (let ch = 0; ch < out.length; ch++) {
+        const x = inp[ch] || inp[0];
+        const dry = x ? x[i] : 0;
+        if (!this.on) this.buf[ch][this.w] = dry;
+        const rep = this.buf[ch][(this.start + pos) % N] * edge * this.gain;
+        out[ch][i] = dry * (1 - this.mix) + rep * this.mix;
+      }
+      if (!this.on) this.w = (this.w + 1) % N; else this.k++;
+    }
+    return true;
+  }
+}
+registerProcessor('slug-repeat', Repeat);
+
 // Recorder tap: captures its input between two exact sample frames and sends
 // the audio to the main thread in chunks (used by EXPORT; one per track).
 class Tap extends AudioWorkletProcessor {

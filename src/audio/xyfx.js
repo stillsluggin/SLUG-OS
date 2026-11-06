@@ -8,7 +8,7 @@
 // env.tempo() = BPM, env.nextBeat() = audio time of the next beat (for sync),
 // env.worklet = true when the AudioWorklet effects loaded.
 
-import { repeatBeats, tapeStopSeconds, defaultParams, LFO_RATES, DELAY_TIMES, stepOf } from '../core/xy.js';
+import { repeatBeats, stutterBeats, tapeStopSeconds, defaultParams, LFO_RATES, DELAY_TIMES, stepOf } from '../core/xy.js';
 import { loadFxWorklet, workletNode } from './fxWorklet.js';
 import { makeChorus, noiseSource } from './util.js';
 
@@ -100,7 +100,7 @@ function dryWet(ac) {
 }
 const to = (param, v, ac, tc = SMOOTH) => param.setTargetAtTime(v, ac.currentTime, tc);
 const shaperCurve = (fn, n = 2048) => { const c = new Float32Array(n); for (let i = 0; i < n; i++) c[i] = fn((i / (n - 1)) * 2 - 1); return c; };
-const NEEDS_WORKLET = new Set(['lofi', 'dive', 'reverse']);
+const NEEDS_WORKLET = new Set(['lofi', 'dive', 'reverse', 'stutter', 'looper']);
 const mixTo = (io, ac, on, mix = 1) => { to(io.wet.gain, on ? mix : 0, ac, 0.01); to(io.dry.gain, on ? 1 - mix : 1, ac, 0.01); };
 
 function impulse(ac, seconds, decay) {
@@ -112,6 +112,50 @@ function impulse(ac, seconds, decay) {
     for (let i = 0; i < len; i++) { lp += 0.5 * ((Math.random() * 2 - 1) - lp); d[i] = lp * Math.pow(1 - i / len, decay); }
   }
   return b;
+}
+
+/** Loop repeater using the worklet (clean joins). lenBeats(a) gives the slice length. */
+function repeaterFx(ac, env, lenBeats, threshold, feelOf) {
+  const rp = workletNode(ac, 'slug-repeat');
+  let a = 0, p = { feel: 0, fade: 0 };
+  const upd = () => {
+    const on = a > threshold;
+    const t = ac.currentTime;
+    rp.parameters.get('length').setValueAtTime(Math.min(2, lenBeats(a) * feelOf(p) * (60 / env.tempo())), t);
+    rp.parameters.get('decay').setValueAtTime(1 - p.fade * 0.35, t);
+    rp.parameters.get('on').setValueAtTime(on ? 1 : 0, t);
+  };
+  upd();
+  return { input: rp, output: rp, tempo: upd, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
+}
+
+/** Fallback loop repeater from a delay line (browsers without AudioWorklet). */
+function delayLooper(ac, env, lenBeats, threshold, feelOf) {
+  const io = dryWet(ac);
+  const cap = ac.createGain();
+  const d = ac.createDelay(2.5);
+  const fb = ac.createGain();
+  fb.gain.value = 0;
+  io.input.connect(cap).connect(d);
+  d.connect(fb).connect(d);
+  d.connect(io.wet);
+  let on = false, len = 0, p = { feel: 0, fade: 0 }, a = 0;
+  const upd = () => {
+    const t = ac.currentTime;
+    const want = a > threshold;
+    const newLen = Math.min(2.4, lenBeats(a) * feelOf(p) * (60 / env.tempo()));
+    if (want && !on) {
+      on = true; len = newLen;
+      d.delayTime.setValueAtTime(len, t);
+      to(cap.gain, 0, ac, 0.003); to(fb.gain, 1 - p.fade * 0.3, ac, 0.003); to(io.wet.gain, 1, ac, 0.003); to(io.dry.gain, 0, ac, 0.003);
+    } else if (want && on && Math.abs(newLen - len) > 0.001) {
+      len = newLen; d.delayTime.setValueAtTime(len, t);
+    } else if (!want && on) {
+      on = false;
+      to(cap.gain, 1, ac, 0.003); to(fb.gain, 0, ac, 0.003); to(io.wet.gain, 0, ac, 0.01); to(io.dry.gain, 1, ac, 0.01);
+    }
+  };
+  return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
 }
 
 // ---------------------------------------------------------------- the effects
@@ -164,54 +208,45 @@ export const MAKERS = {
     };
   },
 
-  /** ISOLATOR: 3-band kill EQ. LOW F / MID F move the band edges. */
+  /**
+   * ISOLATOR: a DJ kill EQ. BAND picks what the pad cuts: LOWS, MIDS, HIGHS,
+   * or SWEEP (lows first, then mids). DEPTH = how far (all the way = gone).
+   */
   isolator(ac) {
-    const lo = ac.createBiquadFilter();
-    lo.type = 'lowshelf';
-    const mid = ac.createBiquadFilter();
-    mid.type = 'peaking'; mid.Q.value = 0.6;
-    lo.connect(mid);
-    let a = 0, p = { low: 0.4, mid: 0.5 };
+    const lo = ac.createBiquadFilter(); lo.type = 'lowshelf'; lo.frequency.value = 250;
+    const mid = ac.createBiquadFilter(); mid.type = 'peaking'; mid.frequency.value = 1000; mid.Q.value = 0.7;
+    const hi = ac.createBiquadFilter(); hi.type = 'highshelf'; hi.frequency.value = 3500;
+    lo.connect(mid).connect(hi);
+    let a = 0, p = { band: 0, depth: 1 };
     const upd = () => {
-      lo.frequency.value = 120 + p.low * 380;
-      mid.frequency.value = 600 + p.mid * 1900;
-      to(lo.gain, -40 * Math.min(1, a * 2), ac); to(mid.gain, -30 * Math.max(0, a * 2 - 1), ac);
+      const band = stepOf(p.band, 4);
+      const max = 12 + p.depth * 36;
+      const g = { lo: 0, mid: 0, hi: 0 };
+      if (band === 0) g.lo = -max * a;
+      if (band === 1) g.mid = -max * a;
+      if (band === 2) g.hi = -max * a;
+      if (band === 3) { g.lo = -max * Math.min(1, a * 2); g.mid = -max * Math.max(0, a * 2 - 1); }
+      to(lo.gain, g.lo, ac); to(mid.gain, g.mid, ac); to(hi.gain, g.hi, ac);
     };
-    upd();
-    return { input: lo, output: mid, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
+    return { input: lo, output: hi, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
   /** BEAT REPEAT: loops the last beat (or 1/2, 1/4...). TRIPLET feel, FADE each repeat. */
   looper(ac, env) {
-    const io = dryWet(ac);
-    const cap = ac.createGain();
-    const d = ac.createDelay(2.5);
-    const fb = ac.createGain();
-    fb.gain.value = 0;
-    io.input.connect(cap).connect(d);
-    d.connect(fb).connect(d);
-    d.connect(io.wet);
-    let on = false, len = 0, p = { feel: 0, fade: 0 };
-    const lenFor = (a) => Math.min(2.4, repeatBeats(a) * (p.feel >= 0.5 ? 2 / 3 : 1) * (60 / env.tempo()));
-    return {
-      ...io,
-      params(q) { p = q; if (on) to(fb.gain, 1 - p.fade * 0.3, ac, 0.003); },
-      set(a) {
-        const t = ac.currentTime;
-        const want = a > 0.08;
-        const newLen = lenFor(a);
-        if (want && !on) {
-          on = true; len = newLen;
-          d.delayTime.setValueAtTime(len, t);
-          to(cap.gain, 0, ac, 0.003); to(fb.gain, 1 - p.fade * 0.3, ac, 0.003); to(io.wet.gain, 1, ac, 0.003); to(io.dry.gain, 0, ac, 0.003);
-        } else if (want && on && Math.abs(newLen - len) > 0.001) {
-          len = newLen; d.delayTime.setValueAtTime(len, t);
-        } else if (!want && on) {
-          on = false;
-          to(cap.gain, 1, ac, 0.003); to(fb.gain, 0, ac, 0.003); to(io.wet.gain, 0, ac, 0.01); to(io.dry.gain, 1, ac, 0.01);
-        }
-      },
-    };
+    const feelOf = (p) => (p.feel >= 0.5 ? 2 / 3 : 1);
+    if (env.worklet) return repeaterFx(ac, env, (a) => repeatBeats(a), 0.08, feelOf);
+    return delayLooper(ac, env, (a) => repeatBeats(a), 0.08, feelOf);
+  },
+
+  /**
+   * STUTTER: a real DJ-style loop stutter. It grabs the slice of music you're
+   * on and repeats it: 1/8 notes, rolling down to 1/16, 1/32 and 1/64 as you
+   * push further. TRIPLET for triplet slices, FADE makes each repeat softer.
+   */
+  stutter(ac, env) {
+    const feelOf = (p) => (p.feel >= 0.5 ? 2 / 3 : 1);
+    if (env.worklet) return repeaterFx(ac, env, (a) => stutterBeats(a), 0.06, feelOf);
+    return delayLooper(ac, env, (a) => stutterBeats(a), 0.06, feelOf);
   },
 
   /** PHASER: six swept all-pass stages. RATE, COLOR (where it sweeps). */
@@ -340,28 +375,6 @@ export const MAKERS = {
       dispose() { clearInterval(timer); },
       get speed() { return speed; },
     };
-  },
-
-  /** STUTTER: chops in time. GRID shifts the divisions; SOFT rounds the edges. */
-  stutter(ac, env) {
-    const gate = ac.createGain();
-    const lfo = ac.createOscillator();
-    lfo.type = 'square';
-    const soft = ac.createBiquadFilter();
-    soft.type = 'lowpass'; soft.frequency.value = 2000;
-    const depth = ac.createGain();
-    depth.gain.value = 0;
-    lfo.connect(soft).connect(depth).connect(gate.gain);
-    lfo.start();
-    let amt = 0, p = { grid: 0.5, soft: 0 };
-    const rate = () => { const base = [1, 2, 4][stepOf(p.grid, 3)]; return (env.tempo() / 60) * base * (amt < 0.4 ? 1 : amt < 0.75 ? 2 : 4); };
-    const upd = () => {
-      const dep = Math.min(1, amt * 1.6);
-      to(gate.gain, 1 - dep / 2, ac, 0.005); to(depth.gain, dep / 2, ac, 0.005);
-      soft.frequency.value = 2000 * Math.pow(0.01, p.soft);
-      lfo.frequency.setValueAtTime(rate(), ac.currentTime);
-    };
-    return { input: gate, output: gate, tempo: upd, set(a) { amt = a; upd(); }, params(q) { p = q; upd(); }, dispose() { lfo.stop(); } };
   },
 
   /** BIT CRUSHER: fewer bits. TONE = how dark, MIX = blend with the clean sound. */

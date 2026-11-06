@@ -17,7 +17,7 @@ const WAVES = {
 export function createAnalog(ac) {
   function voice(slot, p, midi, vel, t, dest, { from } = {}) {
     const [glide, squelch] = slot.knobs;
-    const glideTime = 0.02 + glide * 0.3;
+    let glideTime = 0.02 + glide * 0.3;
     const f = mtof(midi);
     const amp = ac.createGain();
     amp.gain.value = 0;
@@ -91,6 +91,16 @@ export function createAnalog(ac) {
     return makeVoice(ac, amp, oscs, {
       t, a: 0.005, r: 0.12,
       extra: {
+        /** Turning a knob while the note rings: SQUELCH opens the filter and resonance; GLIDE sets the next slide. */
+        update([gl, sq, , ft]) {
+          const now = ac.currentTime;
+          glideTime = 0.02 + gl * 0.3;
+          lp1.Q.setTargetAtTime(0.7 + sq * 11, now, 0.03);
+          const open = Math.min(16000, base * (1 + sq * 3));
+          lp1.frequency.setTargetAtTime(open, now, 0.03);
+          lp2.frequency.setTargetAtTime(open, now, 0.03);
+          oscs.forEach((o, i) => { if (i < (WAVES[p.wave] || WAVES.saw).length) o.detune.setTargetAtTime((i % 2 ? 1 : -1) * (ft ?? 0) * 14, now, 0.05); });
+        },
         /** Mono legato: slide to a new note without re-striking the oscillators. */
         glideTo(m, v, at) {
           const nf = mtof(m);

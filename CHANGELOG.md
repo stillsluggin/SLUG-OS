@@ -2,7 +2,26 @@
 
 All notable changes to Slug OS, newest first. Written for players, not programmers.
 
-## Unreleased (branch claude/fx-export-knobs)
+## Unreleased (branch claude/live-knobs-simple-shock)
+
+### Changed
+- **Knobs tweak the sound live**: turning an engine knob now changes notes
+  that are already ringing (KEYS, ANALOG, PAD, PLUCK, SHINE, TRIP), not just
+  the next ones.
+- **Shell Shock is simpler again**: the screen is the pad, HOLD, ✎ EDIT and a
+  grid of presets. Loaders, name/SAVE, AFFECTS and hidden knobs live in EDIT.
+- **STUTTER is a real stutter**: a DJ-style loop repeater (1/8 rolling down
+  to 1/64, optional triplet feel and fade) instead of a volume gate. BEAT
+  REPEAT uses the same looper with longer slices.
+- **ISOLATOR** now picks the band it kills: LOWS, MIDS, HIGHS or SWEEP.
+
+### Added
+- **17 factory presets** for Shell Shock (DJ FILTER, KILL LOWS/MIDS/HIGHS,
+  STUTTER ROLL, BEAT REPEAT, DUB ECHO, TAPE STOP, LO-FI DUST and more).
+- Hidden knob settings are now remembered per axis, so the same effect on X
+  and Y can be set differently (e.g. kill lows on X, kill highs on Y).
+
+## Earlier (branch claude/fx-export-knobs)
 
 ### Changed
 - **Knobs redesigned**: a raised cap with a ridged edge and a turning pointer,
