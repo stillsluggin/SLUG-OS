@@ -301,7 +301,7 @@ app.recordingToPad = async (buffer, name) => {
 app.projectFile = () => ({
   format: 'slug-os-project', v: 1, saved: new Date().toISOString(),
   session: session.serialize(),
-  xy: { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos },
+  xy: { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos, params: app.xy.params, target: app.xy.target },
   pads: app.pads, kitId: app.kitId,
 });
 app.openProject = (p) => {
@@ -314,7 +314,7 @@ app.openProject = (p) => {
   renderAll();
 };
 
-app.saveXY = () => db.setKV('xy', { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos });
+app.saveXY = () => db.setKV('xy', { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos, params: app.xy.params, target: app.xy.target });
 
 let padsTimer;
 app.savePads = () => { clearTimeout(padsTimer); padsTimer = setTimeout(() => db.setKV('pads', app.pads), 300); };

@@ -205,7 +205,9 @@ import { XY_EFFECTS, SHELL_EFFECTS, DEFAULT_COMBOS, repeatBeats, snapBack, combo
 import { MAKERS } from '../src/audio/xyfx.js';
 
 test('shell shock: every effect has a maker, names, tape stop timing, snap back', () => {
-  assert.equal(XY_EFFECTS.length, 18);
+  assert.equal(XY_EFFECTS.length, 19);
+  assert.ok(XY_EFFECTS.includes('lfofilter'));
+  for (const e of SHELL_EFFECTS) assert.ok(e.params.length >= 2 && e.params.length <= 4, `${e.id} has 2-4 hidden knobs`);
   for (const id of ['filter', 'isolator', 'looper', 'phaser', 'flanger', 'delay', 'tapestop', 'stutter', 'crusher',
     'lofi', 'wobble', 'saturate', 'wash', 'chorus', 'ringmod', 'dive', 'gate', 'reverse']) assert.ok(XY_EFFECTS.includes(id), id);
   for (const e of SHELL_EFFECTS) {

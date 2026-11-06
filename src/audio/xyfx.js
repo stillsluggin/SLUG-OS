@@ -1,12 +1,14 @@
-// xyfx.js — SHELL SHOCK effects on the master bus. Two slots (X and Y) in
-// series. Each effect takes one amount 0..1 and is fully transparent at 0.
+// xyfx.js — SHELL SHOCK effects. Two slots (X and Y) in series. Each effect
+// takes one amount 0..1 (the pad) and is fully transparent at 0, plus a few
+// hidden knobs (TWEAK) passed to params(p) as 0..1 values.
 //
 // HOW TO ADD AN EFFECT: add an entry to SHELL_EFFECTS in src/core/xy.js, then
 // a maker below with the same id. A maker gets (ac, env) and returns:
-//   { input, output, set(amount), tempo?(bpm), dispose?() }
-// env.tempo() is the band's BPM; env.worklet is true when AudioWorklet loaded.
+//   { input, output, set(amount), params?(p), tempo?(bpm), dispose?() }
+// env.tempo() = BPM, env.nextBeat() = audio time of the next beat (for sync),
+// env.worklet = true when the AudioWorklet effects loaded.
 
-import { repeatBeats, tapeStopSeconds } from '../core/xy.js';
+import { repeatBeats, tapeStopSeconds, defaultParams, LFO_RATES, DELAY_TIMES, stepOf } from '../core/xy.js';
 import { loadFxWorklet, workletNode } from './fxWorklet.js';
 import { makeChorus, noiseSource } from './util.js';
 
@@ -16,14 +18,19 @@ export function createXY(ac) {
   const input = ac.createGain();
   const output = ac.createGain();
   let tempo = 90;
-  const env = { tempo: () => tempo, worklet: false };
+  let clock = null; // () => next beat time
+  const env = {
+    tempo: () => tempo,
+    nextBeat: () => (clock ? clock() : ac.currentTime),
+    worklet: false,
+  };
   const slots = { x: null, y: null };
   const ids = { x: null, y: null };
   const amounts = { x: 0, y: 0 };
-  // Effects that need the worklet are rebuilt once it has loaded.
+  const params = { x: {}, y: {} };
   const ready = loadFxWorklet(ac).then((ok) => {
     env.worklet = ok;
-    for (const ax of ['x', 'y']) if (ids[ax] && NEEDS_WORKLET.has(ids[ax])) { const id = ids[ax]; ids[ax] = null; setEffect(ax, id); }
+    for (const ax of ['x', 'y']) if (ids[ax] && NEEDS_WORKLET.has(ids[ax])) { const id = ids[ax]; ids[ax] = null; setEffect(ax, id, params[ax]); }
     return ok;
   });
 
@@ -35,16 +42,18 @@ export function createXY(ac) {
     node.connect(output);
   }
 
-  function setEffect(axis, id) {
-    if (ids[axis] === id) return;
+  function setEffect(axis, id, p = null) {
+    if (p) params[axis] = { ...defaultParams(id), ...p };
+    if (ids[axis] === id) { slots[axis]?.params?.(params[axis]); return; }
     const old = slots[axis];
     if (old) { old.set(0); setTimeout(() => old.dispose && old.dispose(), 400); }
     ids[axis] = id;
+    if (!p) params[axis] = defaultParams(id);
     let fx = null;
     try { fx = MAKERS[id] ? MAKERS[id](ac, env) : null; } catch (e) { fx = null; } // never let one effect break the mix
     slots[axis] = fx;
     wire();
-    if (fx) fx.set(amounts[axis]);
+    if (fx) { fx.params?.(params[axis]); fx.set(amounts[axis]); }
   }
 
   function setAmount(axis, v) {
@@ -52,10 +61,18 @@ export function createXY(ac) {
     if (slots[axis]) slots[axis].set(amounts[axis]);
   }
 
+  function setParams(axis, p) {
+    params[axis] = { ...params[axis], ...p };
+    slots[axis]?.params?.(params[axis]);
+  }
+
   wire();
   return {
-    input, output, setEffect, setAmount, ready,
+    input, output, setEffect, setAmount, setParams, ready,
     setTempo(bpm) { tempo = bpm; for (const s of Object.values(slots)) s && s.tempo && s.tempo(bpm); },
+    setClock(fn) { clock = fn; },
+    /** The current state, so EXPORT can build an identical copy for each stem. */
+    snapshot: () => ({ ids: { ...ids }, amounts: { ...amounts }, params: { x: { ...params.x }, y: { ...params.y } } }),
     get ids() { return { ...ids }; },
     get worklet() { return env.worklet; },
   };
@@ -63,7 +80,6 @@ export function createXY(ac) {
 
 // ---------------------------------------------------------------- helpers
 
-/** input -> dry -> output, plus a wet path you connect yourself. */
 function dryWet(ac) {
   const input = ac.createGain();
   const output = ac.createGain();
@@ -77,6 +93,7 @@ function dryWet(ac) {
 const to = (param, v, ac, tc = SMOOTH) => param.setTargetAtTime(v, ac.currentTime, tc);
 const shaperCurve = (fn, n = 2048) => { const c = new Float32Array(n); for (let i = 0; i < n; i++) c[i] = fn((i / (n - 1)) * 2 - 1); return c; };
 const NEEDS_WORKLET = new Set(['lofi', 'dive', 'reverse']);
+const mixTo = (io, ac, on, mix = 1) => { to(io.wet.gain, on ? mix : 0, ac, 0.01); to(io.dry.gain, on ? 1 - mix : 1, ac, 0.01); };
 
 function impulse(ac, seconds, decay) {
   const len = Math.floor(ac.sampleRate * seconds);
@@ -92,25 +109,71 @@ function impulse(ac, seconds, decay) {
 // ---------------------------------------------------------------- the effects
 
 export const MAKERS = {
-  /** FILTER: low-pass sweep, a little resonant. */
+  /** FILTER: low-pass sweep. RES = resonance, RANGE = how low it goes. */
   filter(ac) {
     const f = ac.createBiquadFilter();
     f.type = 'lowpass';
     f.frequency.value = 20000;
-    return { input: f, output: f, set(a) { to(f.frequency, 20000 * Math.pow(160 / 20000, a), ac); to(f.Q, 0.7 + a * 7, ac); } };
+    let a = 0, p = { res: 0.4, range: 0.5 };
+    const upd = () => { const lo = 800 * Math.pow(60 / 800, p.range); to(f.frequency, 20000 * Math.pow(lo / 20000, a), ac); to(f.Q, 0.7 + a * (2 + p.res * 14), ac); };
+    return { input: f, output: f, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
-  /** ISOLATOR: 3-band kill EQ. First half kills the lows, second half the mids too. */
+  /** LFO FILTER: a tempo-synced low-pass sweep; the pad sets how deep. */
+  lfofilter(ac, env) {
+    const io = dryWet(ac);
+    const f = ac.createBiquadFilter();
+    f.type = 'lowpass';
+    io.input.connect(f).connect(io.wet);
+    const depth = ac.createGain();
+    depth.gain.value = 0;
+    depth.connect(f.detune);
+    let lfo = null, a = 0, on = false, p = { rate: 0.5, res: 0.4, shape: 0, center: 0.5 };
+    const SHAPES = ['sine', 'triangle', 'square', 'sawtooth'];
+    const hz = () => (env.tempo() / 60) / LFO_RATES[stepOf(p.rate, LFO_RATES.length)];
+    // Start the wobble on the next beat so it locks to the groove.
+    function restart() {
+      if (lfo) { try { lfo.stop(); } catch (e) { /* stopped */ } lfo.disconnect(); }
+      lfo = ac.createOscillator();
+      lfo.type = SHAPES[stepOf(p.shape, 4)];
+      lfo.frequency.value = hz();
+      lfo.connect(depth);
+      lfo.start(Math.max(ac.currentTime, env.nextBeat()));
+    }
+    const upd = () => {
+      to(f.frequency, 300 * Math.pow(20, p.center), ac);
+      to(f.Q, 0.7 + p.res * 14, ac);
+      to(depth.gain, a * 2400, ac);
+      if (lfo) to(lfo.frequency, hz(), ac, 0.05);
+      mixTo(io, ac, a > 0.01, Math.min(1, a * 3));
+    };
+    return {
+      ...io,
+      set(v) { a = v; if (v > 0.01 && !on) { on = true; restart(); } if (v <= 0.01) on = false; upd(); },
+      params(q) { const shapeChanged = !lfo || stepOf(q.shape, 4) !== stepOf(p.shape, 4); p = q; if (shapeChanged && on) restart(); upd(); },
+      tempo: () => upd(),
+      dispose() { if (lfo) try { lfo.stop(); } catch (e) { /* stopped */ } },
+    };
+  },
+
+  /** ISOLATOR: 3-band kill EQ. LOW F / MID F move the band edges. */
   isolator(ac) {
     const lo = ac.createBiquadFilter();
-    lo.type = 'lowshelf'; lo.frequency.value = 280;
+    lo.type = 'lowshelf';
     const mid = ac.createBiquadFilter();
-    mid.type = 'peaking'; mid.frequency.value = 1100; mid.Q.value = 0.6;
+    mid.type = 'peaking'; mid.Q.value = 0.6;
     lo.connect(mid);
-    return { input: lo, output: mid, set(a) { to(lo.gain, -40 * Math.min(1, a * 2), ac); to(mid.gain, -30 * Math.max(0, a * 2 - 1), ac); } };
+    let a = 0, p = { low: 0.4, mid: 0.5 };
+    const upd = () => {
+      lo.frequency.value = 120 + p.low * 380;
+      mid.frequency.value = 600 + p.mid * 1900;
+      to(lo.gain, -40 * Math.min(1, a * 2), ac); to(mid.gain, -30 * Math.max(0, a * 2 - 1), ac);
+    };
+    upd();
+    return { input: lo, output: mid, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
-  /** BEAT REPEAT: grabs the last beat (or 1/2, 1/4, 1/8, 1/16) and loops it. */
+  /** BEAT REPEAT: loops the last beat (or 1/2, 1/4...). TRIPLET feel, FADE each repeat. */
   looper(ac, env) {
     const io = dryWet(ac);
     const cap = ac.createGain();
@@ -120,18 +183,19 @@ export const MAKERS = {
     io.input.connect(cap).connect(d);
     d.connect(fb).connect(d);
     d.connect(io.wet);
-    let on = false;
-    let len = 0;
+    let on = false, len = 0, p = { feel: 0, fade: 0 };
+    const lenFor = (a) => Math.min(2.4, repeatBeats(a) * (p.feel >= 0.5 ? 2 / 3 : 1) * (60 / env.tempo()));
     return {
       ...io,
+      params(q) { p = q; if (on) to(fb.gain, 1 - p.fade * 0.3, ac, 0.003); },
       set(a) {
         const t = ac.currentTime;
         const want = a > 0.08;
-        const newLen = Math.min(2.4, repeatBeats(a) * (60 / env.tempo()));
+        const newLen = lenFor(a);
         if (want && !on) {
           on = true; len = newLen;
           d.delayTime.setValueAtTime(len, t);
-          to(cap.gain, 0, ac, 0.003); to(fb.gain, 1, ac, 0.003); to(io.wet.gain, 1, ac, 0.003); to(io.dry.gain, 0, ac, 0.003);
+          to(cap.gain, 0, ac, 0.003); to(fb.gain, 1 - p.fade * 0.3, ac, 0.003); to(io.wet.gain, 1, ac, 0.003); to(io.dry.gain, 0, ac, 0.003);
         } else if (want && on && Math.abs(newLen - len) > 0.001) {
           len = newLen; d.delayTime.setValueAtTime(len, t);
         } else if (!want && on) {
@@ -142,37 +206,40 @@ export const MAKERS = {
     };
   },
 
-  /** PHASER: six swept all-pass stages. */
+  /** PHASER: six swept all-pass stages. RATE, COLOR (where it sweeps). */
   phaser(ac) {
     const io = dryWet(ac);
     const lfo = ac.createOscillator();
     const depth = ac.createGain();
     lfo.connect(depth);
+    const stages = [];
     let node = io.input;
     for (let i = 0; i < 6; i++) {
       const ap = ac.createBiquadFilter();
-      ap.type = 'allpass'; ap.frequency.value = 500 + i * 300; ap.Q.value = 0.5;
+      ap.type = 'allpass'; ap.Q.value = 0.5;
       depth.connect(ap.frequency);
       node.connect(ap);
       node = ap;
+      stages.push(ap);
     }
     node.connect(io.wet);
     lfo.start();
-    return {
-      ...io,
-      set(a) { to(io.wet.gain, a * 0.9, ac); to(io.dry.gain, 1 - a * 0.3, ac); to(lfo.frequency, 0.15 + a * 1.2, ac); to(depth.gain, 200 + a * 1400, ac); },
-      dispose() { lfo.stop(); },
+    let a = 0, p = { rate: 0.3, color: 0.5 };
+    const upd = () => {
+      stages.forEach((ap, i) => { ap.frequency.value = (250 + p.color * 900) * (1 + i * 0.6); });
+      to(io.wet.gain, a * 0.9, ac); to(io.dry.gain, 1 - a * 0.3, ac);
+      to(lfo.frequency, (0.05 + p.rate * 1.5) * (0.5 + a), ac); to(depth.gain, 200 + a * 1400, ac);
     };
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); }, dispose() { lfo.stop(); } };
   },
 
-  /** FLANGER: a very short swept delay with feedback (the jet sound). */
+  /** FLANGER: a very short swept delay with feedback (the jet). RATE, FEEDBACK. */
   flanger(ac) {
     const io = dryWet(ac);
     const d = ac.createDelay(0.03);
     d.delayTime.value = 0.003;
     const fb = ac.createGain();
     const lfo = ac.createOscillator();
-    lfo.frequency.value = 0.25;
     const depth = ac.createGain();
     depth.gain.value = 0.002;
     lfo.connect(depth).connect(d.delayTime);
@@ -180,35 +247,34 @@ export const MAKERS = {
     io.input.connect(d);
     d.connect(fb).connect(d);
     d.connect(io.wet);
-    return {
-      ...io,
-      set(a) { to(io.wet.gain, a * 0.8, ac); to(fb.gain, a * 0.75, ac); to(lfo.frequency, 0.15 + a * 0.5, ac); },
-      dispose() { lfo.stop(); },
-    };
+    let a = 0, p = { rate: 0.3, fb: 0.5 };
+    const upd = () => { to(io.wet.gain, a * 0.8, ac); to(fb.gain, a * (0.3 + p.fb * 0.6), ac); to(lfo.frequency, 0.05 + p.rate * 1.2, ac); };
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); }, dispose() { lfo.stop(); } };
   },
 
-  /** DELAY: tempo-synced dotted-8th echoes; more amount = louder and longer. */
+  /** DELAY: tempo-synced echoes. TIME (1/8 ... 1/2), FEEDBACK, TONE. */
   delay(ac, env) {
     const io = dryWet(ac);
-    const d = ac.createDelay(2);
+    const d = ac.createDelay(4);
     const fb = ac.createGain();
     const lp = ac.createBiquadFilter();
-    lp.type = 'lowpass'; lp.frequency.value = 3000;
+    lp.type = 'lowpass';
     io.input.connect(d);
     d.connect(lp).connect(fb).connect(d);
     lp.connect(io.wet);
-    const sync = (bpm) => to(d.delayTime, (60 / bpm) * 0.75, ac, 0.05);
-    sync(env.tempo());
-    return { ...io, tempo: sync, set(a) { to(io.wet.gain, a * 0.85, ac); to(fb.gain, 0.15 + a * 0.72, ac); } };
+    let a = 0, p = { time: 0.5, fb: 0.6, tone: 0.5 };
+    const upd = () => {
+      to(d.delayTime, (60 / env.tempo()) * DELAY_TIMES[stepOf(p.time, DELAY_TIMES.length)], ac, 0.05);
+      to(lp.frequency, 800 * Math.pow(10, p.tone), ac);
+      to(io.wet.gain, a * 0.85, ac); to(fb.gain, 0.1 + a * (0.3 + p.fb * 0.55), ac);
+    };
+    return { ...io, tempo: upd, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
   /**
-   * TAPE STOP, expressive: where you are on the axis sets how fast the tape
-   * slows (just past the start = a slow 3 s wind-down, the far end = an
-   * instant stop). Drag back and it spins smoothly back up to speed; at the
-   * start it catches up with the live sound.
-   * How: the sound runs through a delay line; letting the delay grow at
-   * (1 - speed) seconds per second plays it at `speed`.
+   * TAPE STOP, expressive: position = how fast the tape slows (slow 3 s
+   * wind-down ... instant). Drag back and it spins back up. SPIN-UP = how fast
+   * it comes back, DARK = how muffled it gets as it slows.
    */
   tapestop(ac) {
     const d = ac.createDelay(8);
@@ -222,7 +288,7 @@ export const MAKERS = {
     input.connect(d).connect(tone).connect(g).connect(output);
     input.connect(live).connect(output);
     live.gain.value = 0;
-    let amount = 0, last = 0, speed = 1, delay = 0, engaged = false;
+    let amount = 0, last = 0, speed = 1, delay = 0, engaged = false, p = { spin: 0.5, dark: 0.6 };
     let lastT = ac.currentTime;
     const TICK = 0.015;
     const timer = setInterval(() => {
@@ -234,8 +300,7 @@ export const MAKERS = {
         engaged = true;
         speed = Math.max(0, speed - dt / tapeStopSeconds(amount)); // brake
       } else if (engaged) {
-        // Dragging back (or let go): spin back up; faster the further back you are.
-        const spinUp = amount <= 0.05 ? 0.35 : 0.35 + amount * 1.2;
+        const spinUp = (1.2 - p.spin * 1.1) * (amount <= 0.05 ? 1 : 1 / (1 + amount * 3));
         speed = Math.min(1, speed + dt / spinUp);
       }
       last = amount;
@@ -243,8 +308,7 @@ export const MAKERS = {
         delay = Math.min(7.9, delay + (1 - speed) * dt);
         d.delayTime.linearRampToValueAtTime(delay, t + TICK);
         g.gain.setTargetAtTime(Math.min(1, speed * 2.5), t, 0.01);
-        tone.frequency.setTargetAtTime(250 + speed * speed * 19000, t, 0.01);
-        // Back to full speed with the pad at the start: crossfade to the live sound.
+        tone.frequency.setTargetAtTime(20000 * Math.pow(Math.max(0.01, speed), 0.5 + p.dark * 2.5) + 200, t, 0.01);
         if (speed >= 1 && amount <= 0.05) {
           engaged = false;
           g.gain.setTargetAtTime(0, t, 0.015);
@@ -264,88 +328,102 @@ export const MAKERS = {
     return {
       input, output,
       set(a) { amount = a; },
+      params(q) { p = q; },
       dispose() { clearInterval(timer); },
       get speed() { return speed; },
     };
   },
 
-  /** STUTTER: chops the sound in time: 8ths, then 16ths, then 32nds. */
+  /** STUTTER: chops in time. GRID shifts the divisions; SOFT rounds the edges. */
   stutter(ac, env) {
     const gate = ac.createGain();
     const lfo = ac.createOscillator();
     lfo.type = 'square';
+    const soft = ac.createBiquadFilter();
+    soft.type = 'lowpass'; soft.frequency.value = 2000;
     const depth = ac.createGain();
     depth.gain.value = 0;
-    lfo.connect(depth).connect(gate.gain);
+    lfo.connect(soft).connect(depth).connect(gate.gain);
     lfo.start();
-    let amt = 0;
-    const rate = () => (env.tempo() / 60) * (amt < 0.4 ? 2 : amt < 0.75 ? 4 : 8);
-    return {
-      input: gate, output: gate,
-      tempo: () => to(lfo.frequency, rate(), ac),
-      set(a) {
-        amt = a;
-        const dep = Math.min(1, a * 1.6);
-        to(gate.gain, 1 - dep / 2, ac, 0.005);
-        to(depth.gain, dep / 2, ac, 0.005);
-        lfo.frequency.setValueAtTime(rate(), ac.currentTime);
-      },
-      dispose() { lfo.stop(); },
+    let amt = 0, p = { grid: 0.5, soft: 0 };
+    const rate = () => { const base = [1, 2, 4][stepOf(p.grid, 3)]; return (env.tempo() / 60) * base * (amt < 0.4 ? 1 : amt < 0.75 ? 2 : 4); };
+    const upd = () => {
+      const dep = Math.min(1, amt * 1.6);
+      to(gate.gain, 1 - dep / 2, ac, 0.005); to(depth.gain, dep / 2, ac, 0.005);
+      soft.frequency.value = 2000 * Math.pow(0.01, p.soft);
+      lfo.frequency.setValueAtTime(rate(), ac.currentTime);
     };
+    return { input: gate, output: gate, tempo: upd, set(a) { amt = a; upd(); }, params(q) { p = q; upd(); }, dispose() { lfo.stop(); } };
   },
 
-  /** BIT CRUSHER: fewer bits and a lower-fi top end. */
+  /** BIT CRUSHER: fewer bits. TONE = how dark, MIX = blend with the clean sound. */
   crusher(ac) {
     const io = dryWet(ac);
     const shaper = ac.createWaveShaper();
     const lp = ac.createBiquadFilter();
     lp.type = 'lowpass';
     io.input.connect(shaper).connect(lp).connect(io.wet);
-    let bits = 0;
-    return {
-      ...io,
-      set(a) {
-        const b = Math.round(16 - a * 13);
-        if (b !== bits) { bits = b; const steps = Math.pow(2, b - 1); shaper.curve = shaperCurve((x) => Math.round(x * steps) / steps, 4096); }
-        to(lp.frequency, 18000 * Math.pow(2500 / 18000, a), ac);
-        const on = a > 0.02 ? 1 : 0;
-        to(io.wet.gain, on, ac, 0.01); to(io.dry.gain, 1 - on, ac, 0.01);
-      },
+    let bits = 0, a = 0, p = { tone: 0.5, mix: 1 };
+    const upd = () => {
+      const b = Math.round(16 - a * 13);
+      if (b !== bits) { bits = b; const steps = Math.pow(2, b - 1); shaper.curve = shaperCurve((x) => Math.round(x * steps) / steps, 4096); }
+      to(lp.frequency, 18000 * Math.pow((1200 + p.tone * 6000) / 18000, a), ac);
+      mixTo(io, ac, a > 0.02, p.mix);
     };
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
-  /** LO-FI: lower sample rate + fewer bits + a little hiss (old samplers). */
+  /**
+   * LO-FI with ERAS (the ERA knob steps through them):
+   *   SAMPLER  12-bit, half sample rate, a touch of hiss (old drum machines)
+   *   CASSETTE soft top end, more hiss, gentle wow
+   *   RADIO    narrow band (AM speaker), crunchy
+   *   CONSOLE  very few bits and a low sample rate (8-bit games)
+   * The pad sets how far into that era you go.
+   */
   lofi(ac, env) {
     const io = dryWet(ac);
-    const lp = ac.createBiquadFilter();
-    lp.type = 'lowpass';
+    const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 20;
+    const lp = ac.createBiquadFilter(); lp.type = 'lowpass';
+    const wow = ac.createDelay(0.05); wow.delayTime.value = 0.004;
+    const wowLfo = ac.createOscillator(); wowLfo.frequency.value = 0.7;
+    const wowD = ac.createGain(); wowD.gain.value = 0;
+    wowLfo.connect(wowD).connect(wow.delayTime);
+    wowLfo.start();
     let core;
-    if (env.worklet) {
-      core = workletNode(ac, 'slug-lofi');
-      io.input.connect(core).connect(lp).connect(io.wet);
-    } else { // fallback: bit reduction + darker top end
-      core = ac.createWaveShaper();
-      core.curve = shaperCurve((x) => Math.round(x * 24) / 24, 4096);
-      io.input.connect(core).connect(lp).connect(io.wet);
-    }
-    return {
-      ...io,
-      set(a) {
-        if (core.parameters) to(core.parameters.get('amount'), a, ac);
-        to(lp.frequency, 16000 * Math.pow(3000 / 16000, a), ac);
-        const on = a > 0.02 ? 1 : 0;
-        to(io.wet.gain, on, ac, 0.01); to(io.dry.gain, 1 - on, ac, 0.01);
-      },
+    if (env.worklet) core = workletNode(ac, 'slug-lofi');
+    else { core = ac.createWaveShaper(); core.curve = shaperCurve((x) => Math.round(x * 24) / 24, 4096); }
+    io.input.connect(hp).connect(core).connect(lp).connect(wow).connect(io.wet);
+    let a = 0, p = { era: 0.4, hiss: 0.4 };
+    const ERAS = [
+      { hold: 2, bits: 12, lp: 11000, hp: 30, wow: 0, hiss: 0.003 },
+      { hold: 1, bits: 14, lp: 7000, hp: 60, wow: 0.0012, hiss: 0.012 },
+      { hold: 3, bits: 9, lp: 3200, hp: 400, wow: 0, hiss: 0.008 },
+      { hold: 8, bits: 5, lp: 9000, hp: 20, wow: 0, hiss: 0.002 },
+    ];
+    const upd = () => {
+      const e = ERAS[stepOf(p.era, ERAS.length)];
+      const k = a; // how far into the era
+      if (core.parameters) {
+        to(core.parameters.get('hold'), 1 + (e.hold - 1) * k * 1.5, ac);
+        to(core.parameters.get('bits'), 16 - (16 - e.bits) * k, ac);
+        to(core.parameters.get('hiss'), e.hiss * k * (0.3 + p.hiss * 1.4), ac);
+      }
+      to(lp.frequency, 20000 * Math.pow(e.lp / 20000, k), ac);
+      to(hp.frequency, 20 * Math.pow(e.hp / 20, k), ac);
+      to(wowD.gain, e.wow * k, ac);
+      mixTo(io, ac, a > 0.02);
     };
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); }, dispose() { wowLfo.stop(); } };
   },
 
-  /** VINYL WOBBLE: a warped record: slow wow + fast flutter + crackle. */
+  /** VINYL WOBBLE: warped record. RATE = wow speed, CRACKLE = surface noise. */
   wobble(ac) {
     const input = ac.createGain();
     const output = ac.createGain();
     const d = ac.createDelay(0.1);
     d.delayTime.value = 0.02;
-    const wow = ac.createOscillator(); wow.frequency.value = 0.55;
+    const wow = ac.createOscillator();
     const flut = ac.createOscillator(); flut.frequency.value = 6.3;
     const wowD = ac.createGain(); wowD.gain.value = 0;
     const flutD = ac.createGain(); flutD.gain.value = 0;
@@ -355,7 +433,6 @@ export const MAKERS = {
     const tone = ac.createBiquadFilter();
     tone.type = 'lowpass'; tone.frequency.value = 20000;
     input.connect(d).connect(tone).connect(output);
-    // Crackle: sparse clicks from filtered noise through a spiky shaper.
     const n = noiseSource(ac);
     const spike = ac.createWaveShaper();
     spike.curve = shaperCurve((x) => (Math.abs(x) > 0.985 ? x : 0));
@@ -363,19 +440,18 @@ export const MAKERS = {
     const crackle = ac.createGain(); crackle.gain.value = 0;
     n.connect(spike).connect(hp).connect(crackle).connect(output);
     n.start();
-    return {
-      input, output,
-      set(a) {
-        to(wowD.gain, a * 0.006, ac, 0.05);
-        to(flutD.gain, a * 0.0004, ac, 0.05);
-        to(crackle.gain, a * 1.2, ac, 0.05);
-        to(tone.frequency, 20000 * Math.pow(5000 / 20000, a), ac);
-      },
-      dispose() { wow.stop(); flut.stop(); n.stop(); },
+    let a = 0, p = { rate: 0.4, crackle: 0.5 };
+    const upd = () => {
+      to(wow.frequency, 0.2 + p.rate * 1.8, ac, 0.05);
+      to(wowD.gain, a * 0.006, ac, 0.05);
+      to(flutD.gain, a * 0.0004, ac, 0.05);
+      to(crackle.gain, a * p.crackle * 2.4, ac, 0.05);
+      to(tone.frequency, 20000 * Math.pow(5000 / 20000, a), ac);
     };
+    return { input, output, set(v) { a = v; upd(); }, params(q) { p = q; upd(); }, dispose() { wow.stop(); flut.stop(); n.stop(); } };
   },
 
-  /** TAPE SATURATION: warm drive into tape-style soft clipping, then fuzz. */
+  /** TAPE SATURATION: warm drive into soft clipping. TONE, MIX. */
   saturate(ac) {
     const io = dryWet(ac);
     const pre = ac.createGain();
@@ -383,78 +459,83 @@ export const MAKERS = {
     sh.oversample = '2x';
     sh.curve = shaperCurve((x) => Math.tanh(x));
     const warm = ac.createBiquadFilter(); warm.type = 'lowshelf'; warm.frequency.value = 180; warm.gain.value = 3;
-    const top = ac.createBiquadFilter(); top.type = 'lowpass'; top.frequency.value = 9000;
+    const top = ac.createBiquadFilter(); top.type = 'lowpass';
     const post = ac.createGain();
     io.input.connect(pre).connect(sh).connect(warm).connect(top).connect(post).connect(io.wet);
-    return {
-      ...io,
-      set(a) {
-        const drive = 1 + a * 14;
-        to(pre.gain, drive, ac);
-        to(post.gain, 1 / Math.sqrt(drive), ac); // keep the level about the same
-        to(top.frequency, 12000 - a * 7000, ac);
-        const on = a > 0.02 ? 1 : 0;
-        to(io.wet.gain, on, ac, 0.01); to(io.dry.gain, 1 - on, ac, 0.01);
-      },
+    let a = 0, p = { tone: 0.5, mix: 1 };
+    const upd = () => {
+      const drive = 1 + a * 14;
+      to(pre.gain, drive, ac); to(post.gain, 1 / Math.sqrt(drive), ac);
+      to(top.frequency, (4000 + p.tone * 14000) - a * 4000, ac);
+      mixTo(io, ac, a > 0.02, p.mix);
     };
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
-  /** REVERB WASH: drowns the mix in a big, dark room. */
+  /** REVERB WASH: drowns the mix in a big room. SIZE (4 rooms), DAMP (darker tail). */
   wash(ac) {
     const io = dryWet(ac);
     const hp = ac.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 250;
     const conv = ac.createConvolver();
-    conv.buffer = impulse(ac, 4.5, 2.2);
-    io.input.connect(hp).connect(conv).connect(io.wet);
-    return { ...io, set(a) { to(io.wet.gain, a * 1.4, ac, 0.05); to(io.dry.gain, 1 - a * 0.55, ac, 0.05); } };
+    const damp = ac.createBiquadFilter(); damp.type = 'lowpass';
+    io.input.connect(hp).connect(conv).connect(damp).connect(io.wet);
+    let a = 0, size = -1, p = { size: 0.6, damp: 0.5 };
+    const upd = () => {
+      const s = stepOf(p.size, 4);
+      if (s !== size) { size = s; conv.buffer = impulse(ac, [1.5, 3, 4.5, 7][s], 2.2); }
+      to(damp.frequency, 16000 * Math.pow(1500 / 16000, p.damp), ac);
+      to(io.wet.gain, a * 1.4, ac, 0.05); to(io.dry.gain, 1 - a * 0.55, ac, 0.05);
+    };
+    upd();
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
-  /** CHORUS: wide, shimmering doubles. */
+  /** CHORUS: wide, shimmering doubles. RATE, DEPTH. */
   chorus(ac) {
     const ch = makeChorus(ac);
-    ch.set({ mix: 0, depth: 0.001, rate: 0.5 });
-    return { input: ch.input, output: ch.output, set(a) { ch.set({ mix: a * 0.9, depth: 0.001 + a * 0.004, rate: 0.35 + a * 0.9 }); } };
+    let a = 0, p = { rate: 0.4, depth: 0.5 };
+    const upd = () => ch.set({ mix: a * 0.9, depth: 0.0005 + a * (0.001 + p.depth * 0.007), rate: 0.15 + p.rate * 2 });
+    upd();
+    return { input: ch.input, output: ch.output, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 
-  /** RING MOD: multiplies the sound by a tone: metallic, bell-like, higher as you go. */
+  /** RING MOD: metallic and bell-like. RANGE = how high, SQUARE = harsher tone. */
   ringmod(ac) {
     const io = dryWet(ac);
     const ring = ac.createGain();
     ring.gain.value = 0;
     const osc = ac.createOscillator();
-    osc.frequency.value = 40;
     osc.connect(ring.gain);
     osc.start();
     io.input.connect(ring).connect(io.wet);
-    return {
-      ...io,
-      set(a) { to(osc.frequency, 30 * Math.pow(40, a), ac, 0.03); to(io.wet.gain, Math.min(1, a * 2.2), ac); to(io.dry.gain, 1 - Math.min(0.85, a * 1.5), ac); },
-      dispose() { osc.stop(); },
+    let a = 0, p = { range: 0.5, square: 0 };
+    const upd = () => {
+      osc.type = p.square >= 0.5 ? 'square' : 'sine';
+      to(osc.frequency, (10 + p.range * 80) * Math.pow(40, a), ac, 0.03);
+      to(io.wet.gain, Math.min(1, a * 2.2), ac); to(io.dry.gain, 1 - Math.min(0.85, a * 1.5), ac);
     };
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); }, dispose() { osc.stop(); } };
   },
 
-  /** PITCH DIVE: the pitch falls as you go, up to two octaves down. */
+  /** PITCH DIVE: the pitch falls as you go. DEPTH = how far, GLIDE = how smoothly. */
   dive(ac, env) {
     const io = dryWet(ac);
+    let a = 0, p = { depth: 0.6, glide: 0.3 };
     if (env.worklet) {
       const ps = workletNode(ac, 'slug-pitch');
       io.input.connect(ps).connect(io.wet);
-      return {
-        ...io,
-        set(a) {
-          ps.parameters.get('semitones').setTargetAtTime(-24 * Math.pow(a, 1.3), ac.currentTime, 0.03);
-          const on = a > 0.01 ? 1 : 0;
-          to(io.wet.gain, on, ac, 0.02); to(io.dry.gain, 1 - on, ac, 0.02);
-        },
+      const upd = () => {
+        ps.parameters.get('semitones').setTargetAtTime(-(6 + p.depth * 30) * Math.pow(a, 1.3), ac.currentTime, 0.01 + p.glide * 0.2);
+        mixTo(io, ac, a > 0.01);
       };
+      return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
     }
-    // Fallback: a short delay swept downward (a gentler wobbly dive).
     const d = ac.createDelay(0.2);
     io.input.connect(d).connect(io.wet);
-    return { ...io, set(a) { to(d.delayTime, a * 0.15, ac, 0.3); to(io.wet.gain, a > 0.01 ? 1 : 0, ac, 0.02); to(io.dry.gain, a > 0.01 ? 0 : 1, ac, 0.02); } };
+    return { ...io, set(v) { a = v; to(d.delayTime, v * 0.15, ac, 0.3); mixTo(io, ac, v > 0.01); }, params(q) { p = q; } };
   },
 
-  /** TRANCE GATE: a rhythmic chop pattern locked to the tempo; busier as you go. */
+  /** TRANCE GATE: a chop pattern locked to the bar. PATTERN picks it, SMOOTH softens it. */
   gate(ac, env) {
     const io = dryWet(ac);
     const vca = ac.createGain();
@@ -464,60 +545,69 @@ export const MAKERS = {
       [1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0],
       [1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0],
       [1, 1, 0, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 1],
+      [1, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 0, 1, 0],
+      [1, 1, 1, 0, 1, 1, 0, 0, 1, 1, 1, 0, 1, 0, 1, 0],
+      [1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 0, 0, 1, 1, 1, 1],
     ];
-    let src = null, patIdx = -1, on = false;
-    // The pattern is one bar of envelope, looped as a control signal into the gate.
-    function build(p) {
+    let src = null, patIdx = -1, on = false, a = 0, p = { pattern: 0, smooth: 0.2 };
+    function build(k) {
       const sr = 8000;
       const bar = (60 / env.tempo()) * 4;
       const len = Math.round(bar * sr);
       const buf = ac.createBuffer(1, len, sr);
       const dd = buf.getChannelData(0);
       const step = len / 16;
+      const atk = 40 - p.smooth * 36;
       for (let i = 0; i < len; i++) {
-        const k = Math.floor(i / step);
-        const ph = (i - k * step) / step;
-        dd[i] = PATTERNS[p][k] ? Math.min(1, ph * 40) * (1 - Math.max(0, ph - 0.7) / 0.3) : 0;
+        const s = Math.floor(i / step);
+        const ph = (i - s * step) / step;
+        dd[i] = PATTERNS[k][s] ? Math.min(1, ph * atk) * (1 - Math.max(0, ph - (0.75 - p.smooth * 0.3)) / (0.25 + p.smooth * 0.3)) : 0;
       }
       return buf;
     }
-    function startPattern(p) {
+    function startPattern(k) {
       if (src) { try { src.stop(); } catch (e) { /* stopped */ } src.disconnect(); }
       src = ac.createBufferSource();
-      src.buffer = build(p);
+      src.buffer = build(k);
       src.loop = true;
       src.connect(vca.gain);
-      src.start();
-      patIdx = p;
+      src.start(Math.max(ac.currentTime, env.nextBeat())); // lock to the beat
+      patIdx = k;
     }
+    const patFor = (v) => (stepOf(p.pattern, 6) + (v < 0.4 ? 0 : v < 0.75 ? 1 : 2)) % PATTERNS.length;
+    const upd = () => {
+      const want = a > 0.03;
+      const k = patFor(a);
+      if (want && (!on || k !== patIdx)) startPattern(k);
+      if (!want && on && src) { try { src.stop(ac.currentTime + 0.05); } catch (e) { /* stopped */ } src = null; }
+      on = want;
+      const depth = Math.min(1, a * 1.8);
+      to(io.wet.gain, want ? depth : 0, ac, 0.01); to(io.dry.gain, want ? 1 - depth : 1, ac, 0.01);
+    };
     return {
       ...io,
       tempo() { if (on) startPattern(patIdx); },
-      set(a) {
-        const want = a > 0.03;
-        const p = a < 0.4 ? 0 : a < 0.75 ? 1 : 2;
-        if (want && (!on || p !== patIdx)) startPattern(p);
-        if (!want && on && src) { try { src.stop(ac.currentTime + 0.05); } catch (e) { /* stopped */ } src = null; }
-        on = want;
-        const depth = Math.min(1, a * 1.8);
-        to(io.wet.gain, want ? depth : 0, ac, 0.01);
-        to(io.dry.gain, want ? 1 - depth : 1, ac, 0.01);
-      },
+      set(v) { a = v; upd(); },
+      params(q) { const rebuild = on && (q.smooth !== p.smooth); p = q; if (rebuild) startPattern(patFor(a)); upd(); },
       dispose() { if (src) try { src.stop(); } catch (e) { /* stopped */ } },
     };
   },
 
-  /** REVERSE REPEAT: plays the last beat (or less) backwards, looped. */
+  /** REVERSE REPEAT: plays the last beat backwards. LENGTH (1/2 ... 4 beats), MIX. */
   reverse(ac, env) {
-    if (!env.worklet) return MAKERS.looper(ac, env); // fallback: a normal beat repeat
+    if (!env.worklet) return MAKERS.looper(ac, env);
+    const io = dryWet(ac);
     const rv = workletNode(ac, 'slug-reverse');
-    return {
-      input: rv, output: rv,
-      set(a) {
-        const on = a > 0.08;
-        rv.parameters.get('length').setValueAtTime(Math.min(2, repeatBeats(a) * 2 * (60 / env.tempo())), ac.currentTime);
-        rv.parameters.get('on').setValueAtTime(on ? 1 : 0, ac.currentTime);
-      },
+    io.input.connect(rv).connect(io.wet);
+    let a = 0, p = { length: 0.5, mix: 1 };
+    const upd = () => {
+      const on = a > 0.08;
+      const maxBeats = [0.5, 1, 2, 4][stepOf(p.length, 4)];
+      rv.parameters.get('length').setValueAtTime(Math.min(2, repeatBeats(a) * maxBeats * (60 / env.tempo())), ac.currentTime);
+      rv.parameters.get('on').setValueAtTime(on ? 1 : 0, ac.currentTime);
+      mixTo(io, ac, on, p.mix);
     };
+    upd();
+    return { ...io, set(v) { a = v; upd(); }, params(q) { p = q; upd(); } };
   },
 };

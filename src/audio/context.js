@@ -96,9 +96,14 @@ export function createMaster(ac) {
   const out = ac.createGain();
   out.gain.value = 0.9;
   // Everything (players, drums, sampler, loops and the reverb/delay returns) -> XY pad -> tape -> out.
+  // `input` goes through the XY pad; `dryInput` skips it (SHELL SHOCK "AFFECTS").
   const xy = createXY(ac);
   input.connect(xy.input);
   xy.output.connect(wow).connect(warmth).connect(tone).connect(limiter).connect(out).connect(ac.destination);
+  const dryInput = ac.createGain();
+  dryInput.connect(wow);
+  const returns = ac.createGain(); // reverb + delay tails
+  returns.connect(input);
 
   // Reverb send
   const reverbIn = ac.createGain();
@@ -107,7 +112,7 @@ export function createMaster(ac) {
   const revHp = ac.createBiquadFilter();
   revHp.type = 'highpass';
   revHp.frequency.value = 200;
-  reverbIn.connect(revHp).connect(reverb).connect(input);
+  reverbIn.connect(revHp).connect(reverb).connect(returns);
 
   // Tempo delay send (dotted 8th by default)
   const delayIn = ac.createGain();
@@ -119,7 +124,7 @@ export function createMaster(ac) {
   dlp.type = 'lowpass';
   dlp.frequency.value = 2800;
   delayIn.connect(delay).connect(dlp).connect(fb).connect(delay);
-  dlp.connect(input);
+  dlp.connect(returns);
 
   const analyser = ac.createAnalyser();
   analyser.fftSize = 1024;
@@ -133,7 +138,11 @@ export function createMaster(ac) {
   };
 
   return {
-    input, reverbIn, delayIn, analyser, stream, xy,
+    input, dryInput, reverbIn, delayIn, analyser, stream, xy,
+    /** Tails go through the pad only when it affects everything. */
+    setReturnsThroughXY(on) { returns.disconnect(); returns.connect(on ? input : dryInput); },
+    reverbBuffer: reverb.buffer, warmthCurve: curve,
+    get delaySeconds() { return delay.delayTime.value; },
     direct: limiter, // for sounds that skip the effects (metronome)
     outNode: out, // the final stereo mix (EXPORT records here)
     setTempo(bpm) { delay.delayTime.setTargetAtTime((60 / bpm) * 0.75, ac.currentTime, 0.1); xy.setTempo(bpm); },

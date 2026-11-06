@@ -10,14 +10,17 @@
 
 const CODE = `
 class Lofi extends AudioWorkletProcessor {
-  static get parameterDescriptors() { return [{ name: 'amount', defaultValue: 0, minValue: 0, maxValue: 1, automationRate: 'k-rate' }]; }
+  static get parameterDescriptors() { return [
+    { name: 'hold', defaultValue: 1, minValue: 1, maxValue: 64, automationRate: 'k-rate' },
+    { name: 'bits', defaultValue: 16, minValue: 2, maxValue: 16, automationRate: 'k-rate' },
+    { name: 'hiss', defaultValue: 0, minValue: 0, maxValue: 0.1, automationRate: 'k-rate' },
+  ]; }
   constructor() { super(); this.hold = [0, 0]; this.count = 0; }
   process(inputs, outputs, params) {
     const inp = inputs[0], out = outputs[0];
-    const a = params.amount[0];
-    const factor = 1 + Math.floor(a * a * 28);          // hold each sample this many times
-    const steps = Math.pow(2, 16 - a * 11) / 2;         // 16 bits -> 5 bits
-    const hiss = a * 0.012;
+    const factor = Math.max(1, Math.round(params.hold[0]));   // hold each sample this many times
+    const steps = Math.pow(2, params.bits[0]) / 2;            // bit depth
+    const hiss = params.hiss[0];
     for (let ch = 0; ch < out.length; ch++) {
       const x = inp[ch] || inp[0];
       const y = out[ch];

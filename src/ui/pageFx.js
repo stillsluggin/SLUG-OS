@@ -1,9 +1,9 @@
 // pageFx.js — SHELL SHOCK: the XY effects pad. One drag plays two effects.
 // Tap X or Y to load any effect from the list; Slug OS names every pairing.
 
-import { h, win, button, tap } from './widgets.js';
+import { h, win, button, tap, knob } from './widgets.js';
 import { spriteImg } from './sprites.js';
-import { SHELL_EFFECTS, XY_LABELS, XY_HINTS, comboName, snapBack } from '../core/xy.js';
+import { SHELL_EFFECTS, XY_LABELS, XY_HINTS, XY_TARGETS, comboName, snapBack, defaultParams, paramsOf, stepOf, LFO_RATE_NAMES, DELAY_TIME_NAMES, LOFI_ERAS } from '../core/xy.js';
 
 export function fxPage(app) {
   const s = app.xy; // { x, y, hold, combos, ax, ay, roll }
@@ -52,7 +52,7 @@ export function fxPage(app) {
   const diceBtn = button('🎲', () => { s.roll++; update(); }, 'sm');
   diceBtn.title = 'Another name';
   const saveBtn = button('SAVE', () => {
-    s.combos.push({ name: currentName(), x: s.x, y: s.y });
+    s.combos.push({ name: currentName(), x: s.x, y: s.y, px: { ...paramsFor(s.x) }, py: { ...paramsFor(s.y) } });
     app.saveXY();
     app.toast(`SAVED · ${currentName()}`);
     update();
@@ -148,7 +148,13 @@ export function fxPage(app) {
       const b = h('button.bevel.combo', { type: 'button' }, h('b', { text: c.name }), h('small', { text: `${XY_LABELS[c.x] || c.x} + ${XY_LABELS[c.y] || c.y}` }));
       b.classList.toggle('on', c.x === s.x && c.y === s.y);
       if (!editing) {
-        tap(b, () => { s.x = c.x; s.y = c.y; s.roll = 0; apply(); app.saveXY(); update(); app.toast(c.name); });
+        tap(b, () => {
+          s.x = c.x; s.y = c.y; s.roll = 0;
+          // A combo brings back its hidden-knob settings too.
+          if (c.px) s.params[c.x] = { ...c.px };
+          if (c.py) s.params[c.y] = { ...c.py };
+          apply(); app.saveXY(); update(); app.toast(c.name);
+        });
         comboGrid.append(b);
         return;
       }
@@ -162,20 +168,72 @@ export function fxPage(app) {
   }
 
   const holdBtn = button('HOLD', () => { s.hold = !s.hold; if (!s.hold) release(); update(); app.saveXY(); });
+
+  // ---- TWEAK: each effect's hidden knobs, and what the pad affects (out of the way until you want it)
+  s.params = s.params || {};
+  s.target = s.target || 'ALL';
+  const paramsFor = (id) => (s.params[id] = { ...defaultParams(id), ...(s.params[id] || {}) });
+  const tweakBtn = button('⚙ TWEAK', () => { tweakOpen = !tweakOpen; update(); });
+  let tweakOpen = false;
+  const tweakRows = { x: h('div.tweakrow'), y: h('div.tweakrow') };
+  const targetBtns = XY_TARGETS.map((t) => button(t, () => { s.target = t; app.audio?.setXYTarget(t); app.saveXY(); update(); }, 'sm'));
+  const drawer = h('div.drawer', {},
+    h('div.row', {}, h('span.lab', { text: 'AFFECTS' }), h('span.seg', {}, targetBtns)),
+    tweakRows.x, tweakRows.y);
+  const stepName = (id, pid, v) => {
+    if (id === 'lfofilter' && pid === 'rate') return LFO_RATE_NAMES[stepOf(v, LFO_RATE_NAMES.length)];
+    if (id === 'lfofilter' && pid === 'shape') return ['SINE', 'TRI', 'SQUARE', 'SAW'][stepOf(v, 4)];
+    if (id === 'delay' && pid === 'time') return DELAY_TIME_NAMES[stepOf(v, DELAY_TIME_NAMES.length)];
+    if (id === 'lofi' && pid === 'era') return LOFI_ERAS[stepOf(v, LOFI_ERAS.length)];
+    if (id === 'wash' && pid === 'size') return ['ROOM', 'HALL', 'CAVE', 'CANYON'][stepOf(v, 4)];
+    if (id === 'stutter' && pid === 'grid') return ['SLOW', 'MID', 'FAST'][stepOf(v, 3)];
+    if (id === 'reverse' && pid === 'length') return ['1/2', '1 BEAT', '2 BEATS', '1 BAR'][stepOf(v, 4)];
+    if (id === 'gate' && pid === 'pattern') return `PAT ${stepOf(v, 6) + 1}`;
+    return null;
+  };
+  function renderTweak() {
+    for (const axis of ['x', 'y']) {
+      const id = s[axis];
+      const row = tweakRows[axis];
+      row.innerHTML = '';
+      row.append(h('span.tweakname', { text: `${axis.toUpperCase()} ${XY_LABELS[id]}` }));
+      const knobs = h('div.tweakknobs');
+      for (const prm of paramsOf(id)) {
+        const k = knob({
+          label: () => stepName(id, prm.id, paramsFor(id)[prm.id]) || prm.label,
+          get: () => paramsFor(id)[prm.id],
+          set: (v) => {
+            paramsFor(id)[prm.id] = v;
+            fx()?.setParams(axis, paramsFor(id));
+            if (s.x === s.y) fx()?.setParams(axis === 'x' ? 'y' : 'x', paramsFor(id));
+            k.update();
+            saveSoonXY();
+          },
+          steps: prm.steps || 0,
+        });
+        knobs.append(k.el);
+      }
+      row.append(knobs);
+    }
+  }
+  let xyTimer = null;
+  const saveSoonXY = () => { clearTimeout(xyTimer); xyTimer = setTimeout(() => app.saveXY(), 300); };
   const el = h('div.page', {},
     win('Shell Shock', [
       h('div.loaders', {}, loadX, loadY),
       h('div.row.namerow', {}, nameEl, diceBtn, saveBtn),
       h('div.xywrap', {}, pad),
-      h('div.row', { style: 'margin-top:6px' }, holdBtn, h('span.grow'), h('span.help', { text: 'Drag: both effects. Let go: they glide back.' })),
+      h('div.row', { style: 'margin-top:6px' }, holdBtn, tweakBtn, h('span.grow'), h('span.help.padhelp', { text: 'Drag: both effects. Let go: they glide back.' })),
+      drawer,
     ]),
     win('Combos', [h('div.row', {}, h('span.lab', { text: 'SAVED' }), h('span.grow'), editBtn), h('div', { style: 'margin-top:6px' }, comboGrid)]),
     loader,
   );
 
   function apply() {
-    fx()?.setEffect('x', s.x);
-    fx()?.setEffect('y', s.y);
+    fx()?.setEffect('x', s.x, paramsFor(s.x));
+    fx()?.setEffect('y', s.y, paramsFor(s.y));
+    app.audio?.setXYTarget(s.target || 'ALL');
     fx()?.setAmount('x', s.ax || 0);
     fx()?.setAmount('y', s.ay || 0);
   }
@@ -189,6 +247,10 @@ export function fxPage(app) {
     xHint.textContent = `${XY_LABELS[s.x]} → ${XY_HINTS[s.x]}`;
     yHint.textContent = `${XY_LABELS[s.y]} ↑ ${XY_HINTS[s.y]}`;
     holdBtn.classList.toggle('on', s.hold);
+    tweakBtn.classList.toggle('on', tweakOpen);
+    drawer.style.display = tweakOpen ? '' : 'none';
+    targetBtns.forEach((b, i) => b.classList.toggle('on', s.target === XY_TARGETS[i]));
+    if (tweakOpen) renderTweak();
     renderCombos();
     draw();
   }

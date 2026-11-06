@@ -32,7 +32,12 @@ export function createOutput(ac) {
   const sampler = createSamplePlayer(ac, master.input);
   const renderer = createRenderer(ac);
   const loopBus = ac.createGain();
-  loopBus.connect(master.input);
+  // Three groups the XY pad can target: band (the four synth players), drums, sampler + loops.
+  const groups = { band: ac.createGain(), drums: ac.createGain(), sampler: ac.createGain() };
+  for (const g of Object.values(groups)) g.connect(master.input);
+  sampler.bus.disconnect();
+  sampler.bus.connect(groups.sampler);
+  loopBus.connect(groups.sampler);
 
   // ---- player buses
   const buses = {};
@@ -41,7 +46,7 @@ export function createOutput(ac) {
     const out = ac.createGain();
     const rev = ac.createGain();
     const del = ac.createGain();
-    out.connect(master.input);
+    out.connect(id === 'drummer' ? groups.drums : groups.band);
     out.connect(rev).connect(master.reverbIn);
     out.connect(del).connect(master.delayIn);
     // voices -> engine insert -> MORPH colour chain -> level
@@ -226,6 +231,14 @@ export function createOutput(ac) {
     },
   };
 
+  // Synced XY effects (LFO filter, trance gate) start on the next beat of the band.
+  master.xy.setClock(() => {
+    const beat = 60 / tempo;
+    const t = ac.currentTime;
+    if (!playing) return t;
+    return barOneTime + Math.ceil((t - barOneTime) / beat) * beat;
+  });
+
   return {
     out,
     master,
@@ -255,6 +268,14 @@ export function createOutput(ac) {
       return true;
     },
     recorder: createRecorder(ac),
+    /** SHELL SHOCK "AFFECTS": ALL, BAND, DRUMS or SAMPLER (with loops). */
+    setXYTarget(target) {
+      for (const [name, g] of Object.entries(groups)) {
+        g.disconnect();
+        g.connect(target === 'ALL' || target === name.toUpperCase() ? master.input : master.dryInput);
+      }
+      master.setReturnsThroughXY(target === 'ALL');
+    },
     /** Points EXPORT can record: the final mix and each part (stems are before the shared room/echo). */
     taps: () => ({
       mix: master.outNode,

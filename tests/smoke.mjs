@@ -168,6 +168,62 @@ for (let i = 0; i < effects.length; i++) {
   await page.waitForTimeout(150);
 }
 R.xyBroken = Object.entries(R.xy).filter(([, v]) => v < 0).map(([k]) => k);
+// hidden knobs at both extremes on every effect
+R.xyParamsBroken = await page.evaluate(async (effects) => {
+  const { app } = window.__slug;
+  const xy = app.audio.master.xy;
+  const an = app.audio.analyser; const buf = new Float32Array(an.fftSize);
+  const bad = [];
+  for (const id of effects) {
+    xy.setEffect('x', id); xy.setAmount('x', 0.8);
+    for (const v of [0, 1]) {
+      const p = {}; for (const k of ['res', 'range', 'low', 'mid', 'feel', 'fade', 'rate', 'color', 'fb', 'time', 'tone', 'spin', 'dark', 'grid', 'soft', 'mix', 'era', 'hiss', 'crackle', 'size', 'damp', 'depth', 'square', 'glide', 'pattern', 'smooth', 'length', 'shape', 'center']) p[k] = v;
+      xy.setParams('x', p);
+      await new Promise((r) => setTimeout(r, 150));
+      an.getFloatTimeDomainData(buf);
+      if (buf.some((x) => !Number.isFinite(x))) bad.push(`${id}@${v}`);
+    }
+    xy.setAmount('x', 0);
+  }
+  return bad;
+}, effects);
+// LFO filter: the level should pulse (vary) over time when deep
+R.lfoPulse = await page.evaluate(async () => {
+  const { app, session } = window.__slug;
+  const xy = app.audio.master.xy;
+  xy.setEffect('x', 'lfofilter', { rate: 0.6, res: 0.5, shape: 0, center: 0.1 }); xy.setAmount('x', 1);
+  xy.setEffect('y', 'filter'); xy.setAmount('y', 0);
+  const an = app.audio.analyser; const buf = new Float32Array(an.fftSize);
+  const lv = [];
+  const end = performance.now() + 2000;
+  while (performance.now() < end) { an.getFloatTimeDomainData(buf); let e = 0; for (const x of buf) e += x * x; lv.push(Math.sqrt(e / buf.length)); await new Promise((r) => setTimeout(r, 30)); }
+  xy.setAmount('x', 0);
+  return +((Math.max(...lv) - Math.min(...lv)) / (Math.max(...lv) || 1)).toFixed(2);
+});
+// AFFECTS: a full tape stop aimed at SAMPLER leaves the band playing; at ALL it goes silent
+R.affects = await page.evaluate(async () => {
+  const { app } = window.__slug;
+  const xy = app.audio.master.xy;
+  const an = app.audio.analyser; const buf = new Float32Array(an.fftSize);
+  const lvl = async (ms) => { let pk = 0; const e = performance.now() + ms; while (performance.now() < e) { an.getFloatTimeDomainData(buf); for (const x of buf) pk = Math.max(pk, Math.abs(x)); await new Promise((r) => setTimeout(r, 20)); } return +pk.toFixed(3); };
+  xy.setEffect('x', 'tapestop'); xy.setEffect('y', 'filter');
+  const out = {};
+  for (const t of ['SAMPLER', 'ALL']) {
+    app.audio.setXYTarget(t);
+    xy.setAmount('x', 1);
+    await new Promise((r) => setTimeout(r, 900));
+    out[t] = await lvl(300);
+    xy.setAmount('x', 0);
+    await new Promise((r) => setTimeout(r, 1500));
+  }
+  app.audio.setXYTarget('ALL');
+  return out;
+});
+// TWEAK drawer opens with knobs for both axes
+await setFx('lfofilter', 'delay');
+await page.tap('button:has-text("TWEAK")');
+R.tweakKnobs = await page.$$eval('.tweakrow', (rows) => rows.map((r) => [...r.querySelectorAll('.kl')].map((k) => k.textContent).join(',')));
+await page.tap('button:has-text("TWEAK")');
 // the loader: tap X, pick TAPE STOP from the list
 await page.tap('.loader >> nth=0');
 R.loaderRows = await page.$$eval('.fxrow', (els) => els.length);
