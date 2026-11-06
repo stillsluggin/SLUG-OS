@@ -25,8 +25,9 @@ import { mod12, inKeyPcs, parseRoman } from './theory.js';
 import { makeChord, chordPcs, chordName, romanOf, qualityName, diatonicChord, borrow, cloneChord, sameChord } from './chord.js';
 
 export const TAGS = ['NOSTALGIC', 'EMOTIONAL', 'CALM', 'SURPRISE'];
-export const STYLE_IDS = ['nujabes', 'tyler', 'motown'];
-export const STYLE_LABELS = { nujabes: 'NUJABES', tyler: 'TYLER', motown: 'MOTOWN' };
+// Internal ids stay the same so saved projects still load; the names on screen changed.
+export const STYLE_IDS = ['nujabes', 'tyler', 'motown', 'cruise', 'bloom', 'drift'];
+export const STYLE_LABELS = { nujabes: 'BREATHE', tyler: 'FOCUS', motown: 'STOMP', cruise: 'CRUISE', bloom: 'BLOOM', drift: 'DRIFT' };
 
 // ---------------------------------------------------------------------------
 // STYLE TABLES
@@ -59,7 +60,7 @@ const COMMON = {
 };
 
 const STYLES = {
-  // NUJABES: minor 9ths, major 7ths, ii–V movement, looping progressions.
+  // BREATHE (id nujabes): minor 9ths, major 7ths, ii–V movement, looping progressions.
   nujabes: {
     major: {
       I: ['ii m9 NOSTALGIC .9 starts a ii–V', 'IV maj7 CALM .85 floats up to IV', 'vi m9 EMOTIONAL .8 falls to the relative minor', 'iii m7 CALM .6 drifts up', 'bVII 9 SURPRISE .5 borrowed bVII', 'bIII maj7 SURPRISE .45 borrowed bIII'],
@@ -81,7 +82,7 @@ const STYLES = {
     },
   },
 
-  // TYLER, THE CREATOR: maj7#11 chords, chromatic slides, borrowed chords.
+  // FOCUS (id tyler): maj7#11 chords, chromatic slides, borrowed chords.
   tyler: {
     major: {
       I: ['IV maj7#11 CALM .9 lydian float', 'vi m9 EMOTIONAL .75 falls to vi', 'iii m7 NOSTALGIC .7 drifts up', 'bIII maj7 SURPRISE .65 borrowed bIII', 'bVI maj7#11 SURPRISE .6 borrowed bVI'],
@@ -106,7 +107,7 @@ const STYLES = {
     },
   },
 
-  // MOTOWN: I–vi–IV–V, gospel passing chords, secondary dominants.
+  // STOMP (id motown): I–vi–IV–V, gospel passing chords, secondary dominants.
   motown: {
     major: {
       I: ['vi m7 NOSTALGIC 1 I–vi, the Motown classic', 'IV 6 CALM .8 lifts to IV', 'ii m7 CALM .6 walks up', 'iii m7 EMOTIONAL .55 steps up', '#i dim7 SURPRISE .6 gospel passing chord'],
@@ -132,6 +133,77 @@ const STYLES = {
       bVII: ['i m7 NOSTALGIC .9 home, loop it', 'bIII maj CALM .7 relative major', 'bVI maj EMOTIONAL .65 steps down', 'IV 7 SURPRISE .5 dorian lift'],
     },
   },
+
+  // CRUISE: G-funk. Minor sway, dominant 9ths, a slow bounce.
+  cruise: {
+    major: {
+      I: ['vi m9 NOSTALGIC .9 the sunset turn', 'IV 9 CALM .75 lazy lift', 'ii m9 EMOTIONAL .6 sighs', 'bVII 9 SURPRISE .6 borrowed cruise'],
+      ii: ['V 9 NOSTALGIC .85 ii–V cruise', 'iii m7 CALM .6 steps up', 'vi m9 EMOTIONAL .6 falls', 'bII 9 SURPRISE .5 slides down'],
+      iii: ['vi m9 NOSTALGIC .85 down a fifth', 'IV 9 CALM .7 lifts', 'ii m9 EMOTIONAL .6 sighs', 'bIII 9 SURPRISE .5 slides'],
+      IV: ['I maj7 CALM .8 settles', 'iii m7 NOSTALGIC .7 drifts', 'V 9 EMOTIONAL .6 hangs', 'iv m9 SURPRISE .6 borrowed minor iv'],
+      V: ['I maj7 CALM .85 home', 'vi m9 EMOTIONAL .75 deceptive', 'IV 9 NOSTALGIC .6 backs off', 'bVI 9 SURPRISE .5 borrowed bVI'],
+      vi: ['ii m9 NOSTALGIC .85 cycle of fourths', 'IV 9 CALM .75 lifts', 'V 9 EMOTIONAL .6 rises', 'bVII 9 SURPRISE .55 borrowed bVII'],
+      vii: ['iii m7 NOSTALGIC .8 down a fifth', 'I maj7 CALM .7 home', 'vi m9 EMOTIONAL .6 falls', 'bVII 9 SURPRISE .5 slides down'],
+    },
+    minor: {
+      i: ['iv m9 NOSTALGIC .95 the G-funk sway', 'bVII 9 CALM .75 cruises up', 'bVI maj7 EMOTIONAL .7 sinks', 'v m7 CALM .6 drifts', 'bII 9 SURPRISE .5 slides'],
+      ii: ['V 7 NOSTALGIC .85 minor ii–V', 'bIII maj7 CALM .6 steps up', 'i m9 EMOTIONAL .55 falls home', 'bII 9 SURPRISE .5 slides down'],
+      bIII: ['bVII 9 NOSTALGIC .75 down a fourth', 'iv m9 EMOTIONAL .75 rises', 'bVI maj7 CALM .65 floats', 'bII 9 SURPRISE .45 slides'],
+      iv: ['i m9 NOSTALGIC .9 back to the sway', 'bVII 9 CALM .75 lifts', 'v m7 EMOTIONAL .6 rises', 'IV 9 SURPRISE .55 dorian lift'],
+      v: ['i m9 CALM .85 home', 'iv m9 NOSTALGIC .7 falls back', 'bVI maj7 EMOTIONAL .7 steps up', 'bII 9 SURPRISE .45 sidesteps'],
+      bVI: ['bVII 9 NOSTALGIC .85 climbs', 'v m7 EMOTIONAL .7 falls', 'i m9 CALM .65 home', 'V 7 SURPRISE .5 tense dominant'],
+      bVII: ['i m9 NOSTALGIC .9 home, loop it', 'iv m9 CALM .7 falls back', 'bVI maj7 EMOTIONAL .6 steps down', 'IV 9 SURPRISE .45 dorian lift'],
+    },
+  },
+
+  // BLOOM: gospel-tinged neo-soul. 11ths and 13ths, passing chords, very laid back.
+  bloom: {
+    major: {
+      I: ['IV maj9 NOSTALGIC .85 church lift', 'vi m11 EMOTIONAL .75 falls soft', 'ii m9 CALM .7 walks up', 'iii m7 CALM .55 drifts', '#i dim7 SURPRISE .6 gospel passing chord'],
+      ii: ['V 13 NOSTALGIC .95 the ii–V', 'iii m7 CALM .65 walks up', 'vi m11 EMOTIONAL .55 falls', '#ii dim7 SURPRISE .55 gospel climb'],
+      iii: ['vi m11 NOSTALGIC .85 down a fifth', 'IV maj9 CALM .75 steps up', 'ii m9 EMOTIONAL .6 sighs', 'III 7 SURPRISE .6 secondary dominant'],
+      IV: ['iii m7 NOSTALGIC .8 steps down', 'I maj9 CALM .75 amen', 'V 13 CALM .6 lifts', 'iv m6 EMOTIONAL .7 minor plagal', '#iv dim7 SURPRISE .7 gospel climb'],
+      V: ['I maj9 CALM .9 home', 'vi m11 EMOTIONAL .75 deceptive', 'IV maj9 NOSTALGIC .6 backs off', 'bVI maj7 SURPRISE .5 borrowed bVI'],
+      vi: ['ii m9 NOSTALGIC .9 down a fifth', 'IV maj9 CALM .75 floats', 'iii m7 EMOTIONAL .55 steps down', 'II 7 SURPRISE .6 secondary dominant'],
+      vii: ['iii m7 NOSTALGIC .8 down a fifth', 'I maj9 CALM .75 home', 'vi m11 EMOTIONAL .6 falls', 'III 7 SURPRISE .55 secondary dominant'],
+      '#i': ['ii m9 NOSTALGIC .95 passing chord resolves up', 'I maj9 CALM .5 slips back'],
+      '#ii': ['iii m7 NOSTALGIC .9 passing chord resolves up', 'ii m9 CALM .5 slips back'],
+      '#iv': ['V 13 NOSTALGIC .9 passing chord resolves up', 'I maj9 CALM .6 home over the 5th'],
+      III: ['vi m11 NOSTALGIC .95 secondary dominant resolves', 'IV maj9 CALM .5 sidesteps'],
+      II: ['V 13 NOSTALGIC .95 secondary dominant resolves', 'ii m9 CALM .5 softens'],
+    },
+    minor: {
+      i: ['iv m11 NOSTALGIC .9 the soul sway', 'bVI maj9 EMOTIONAL .75 sinks', 'bIII maj9 CALM .65 lifts', 'ii m7b5 CALM .6 to the ii–V', 'V 7b9 SURPRISE .55 gospel dominant'],
+      ii: ['V 7 NOSTALGIC .95 minor ii–V', 'bIII maj9 CALM .6 steps up', 'i m11 EMOTIONAL .55 falls home', 'bII maj7 SURPRISE .45 Neapolitan'],
+      bIII: ['bVI maj9 NOSTALGIC .8 down a fifth', 'iv m11 EMOTIONAL .7 rises', 'bVII 9 CALM .7 sways', 'iii dim7 SURPRISE .5 passing up to iv'],
+      iv: ['bVII 13 NOSTALGIC .85 the backdoor', 'V 7 EMOTIONAL .65 tense', 'i m11 CALM .7 home', '#iv dim7 SURPRISE .55 gospel passing chord'],
+      v: ['i m11 CALM .8 home', 'bVI maj9 EMOTIONAL .75 steps up', 'iv m11 NOSTALGIC .7 falls back', 'V 7b9 SURPRISE .5 gospel dominant'],
+      bVI: ['bVII 13 NOSTALGIC .85 climbs', 'V 7 EMOTIONAL .7 tense dominant', 'iv m11 CALM .65 settles', 'bII maj7 SURPRISE .45 Neapolitan'],
+      bVII: ['i m11 NOSTALGIC .9 home, loop it', 'bIII maj9 CALM .7 relative major', 'bVI maj9 EMOTIONAL .65 steps down', 'IV 9 SURPRISE .5 dorian lift'],
+    },
+  },
+
+  // DRIFT: calm and spacious. Open sus chords, major 7ths, gentle steps.
+  drift: {
+    major: {
+      I: ['IV maj7 CALM .9 floats', 'V sus2 NOSTALGIC .7 hangs open', 'vi m7 EMOTIONAL .7 falls soft', 'ii m9 CALM .6 drifts up', 'bVII maj7 SURPRISE .5 borrowed haze'],
+      ii: ['IV maj7 CALM .8 lifts', 'V sus2 NOSTALGIC .75 hangs', 'vi m7 EMOTIONAL .6 falls', 'bVII maj7 SURPRISE .5 borrowed haze'],
+      iii: ['IV maj7 CALM .85 drifts up', 'I maj7 NOSTALGIC .6 home', 'vi m7 EMOTIONAL .7 falls', 'bIII maj7 SURPRISE .5 slides'],
+      IV: ['I maj7 CALM .85 settles', 'V sus2 NOSTALGIC .7 hangs open', 'vi m7 EMOTIONAL .65 falls', 'iv m6 SURPRISE .55 borrowed minor iv'],
+      V: ['IV maj7 NOSTALGIC .8 backs away', 'I maj7 CALM .75 home', 'vi m7 EMOTIONAL .7 deceptive', 'bVI maj7 SURPRISE .5 borrowed bVI'],
+      vi: ['IV maj7 CALM .85 floats up', 'V sus2 NOSTALGIC .7 hangs', 'iii m7 EMOTIONAL .6 steps down', 'bVI maj7 SURPRISE .5 slides'],
+      vii: ['I maj7 CALM .8 resolves up', 'iii m7 NOSTALGIC .7 down a fifth', 'vi m7 EMOTIONAL .6 falls', 'bVII maj7 SURPRISE .5 slides'],
+    },
+    minor: {
+      i: ['bVI maj7 CALM .85 sinks soft', 'bIII maj7 NOSTALGIC .75 lifts', 'iv m9 EMOTIONAL .7 sways', 'bVII sus2 CALM .65 opens', 'IV 6 SURPRISE .5 dorian light'],
+      ii: ['bIII maj7 CALM .75 steps up', 'v m7 NOSTALGIC .65 rises', 'i m9 EMOTIONAL .6 falls home', 'bII maj7 SURPRISE .45 slides'],
+      bIII: ['bVI maj7 CALM .8 floats down', 'bVII sus2 NOSTALGIC .7 opens', 'iv m9 EMOTIONAL .65 rises', 'bII maj7 SURPRISE .45 slides'],
+      iv: ['i m9 CALM .8 settles', 'bVI maj7 NOSTALGIC .7 floats', 'bIII maj7 EMOTIONAL .6 drifts down', 'IV 6 SURPRISE .5 dorian light'],
+      v: ['bVI maj7 CALM .8 steps up', 'i m9 NOSTALGIC .7 home', 'iv m9 EMOTIONAL .65 falls back', 'bII maj7 SURPRISE .45 sidesteps'],
+      bVI: ['bVII sus2 NOSTALGIC .8 opens up', 'i m9 CALM .75 home', 'iv m9 EMOTIONAL .65 settles', 'bII maj7 SURPRISE .45 floats'],
+      bVII: ['i m9 CALM .85 home', 'bVI maj7 NOSTALGIC .7 steps down', 'bIII maj7 EMOTIONAL .6 relative major', 'IV 6 SURPRISE .45 dorian light'],
+    },
+  },
 };
 
 // The colour each style gives a plain diatonic chord (used by the generic pool
@@ -143,6 +215,9 @@ export function colorChord(c, key, style) {
   if (style === 'motown') nq = q === '' ? (off === 7 ? '7' : 'maj') : q === 'm' ? 'm7' : null;
   if (style === 'nujabes') nq = q === '' ? (off === 7 ? '9sus4' : off === 0 ? 'maj9' : 'maj7') : q === 'm' ? 'm9' : null;
   if (style === 'tyler') nq = q === '' ? (off === 5 ? 'maj7#11' : off === 7 ? '13' : 'maj9') : q === 'm' ? 'm9' : null;
+  if (style === 'cruise') nq = q === '' ? (off === 0 ? 'maj7' : '9') : q === 'm' ? 'm9' : null;
+  if (style === 'bloom') nq = q === '' ? (off === 7 ? '13' : 'maj9') : q === 'm' ? 'm11' : null;
+  if (style === 'drift') nq = q === '' ? (off === 7 ? 'sus2' : 'maj7') : q === 'm' ? 'm7' : null;
   return nq ? makeChord(c.root, nq) : cloneChord(c);
 }
 

@@ -62,7 +62,35 @@ const clickBtn = h('button.bevel.sm.clickbtn', { type: 'button', 'aria-label': '
 tap(clickBtn, () => session.toggleMetronome());
 tap(playBtn, () => { session.buttonDown('play'); session.buttonUp('play'); });
 tap(keyPill, () => { session.buttonDown('key'); session.buttonUp('key'); });
-tap(bpmPill, () => setPage('drums'));
+// BPM pop-up: − / + (hold to keep going) or tap the number to type it.
+const bpmInput = h('input.bpmnum', { type: 'number', inputmode: 'numeric', min: 40, max: 220, 'aria-label': 'Tempo in BPM' });
+const nudgeBtn = (label, d) => {
+  const b = h('button.bevel.big', { type: 'button' }, label);
+  let timer = null, rep = null;
+  const stop = () => { clearTimeout(timer); clearInterval(rep); b.classList.remove('down'); };
+  b.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    b.classList.add('down');
+    session.setTempo(st.tempo + d);
+    timer = setTimeout(() => { rep = setInterval(() => session.setTempo(st.tempo + d), 70); }, 400);
+  });
+  b.addEventListener('pointerup', stop);
+  b.addEventListener('pointerleave', stop);
+  b.addEventListener('pointercancel', stop);
+  return b;
+};
+const bpmPop = h('div.loader-wrap.bpmpop', {},
+  h('div.win.bpm-win', {},
+    h('div.win-title', {}, h('span.box'), h('b', { text: 'TEMPO' }), button('✕', () => bpmPop.classList.remove('open'), 'sm')),
+    h('div.win-body', {},
+      h('div.bpmrow', {}, nudgeBtn('−', -1), h('label.bpmbox', {}, bpmInput, h('small', { text: 'BPM' })), nudgeBtn('+', 1)),
+      h('p.help', { text: 'Tap the number to type a tempo (40–220). Hold − or + to keep going.' }))));
+bpmPop.addEventListener('pointerdown', (ev) => { if (ev.target === bpmPop) bpmPop.classList.remove('open'); });
+const commitBpm = () => { session.setTempo(bpmInput.value); bpmInput.value = st.tempo; };
+bpmInput.addEventListener('change', commitBpm);
+bpmInput.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') { commitBpm(); bpmInput.blur(); } });
+document.body.append(bpmPop);
+tap(bpmPill, () => { bpmInput.value = st.tempo; bpmPop.classList.add('open'); });
 const menubar = h('div.menubar', {},
   h('span.logo', {}, spriteImg('snail', 1), 'SLUG OS'), keyPill, bpmPill,
   h('span.trail', {}, trailFill, trailSnail), recPill, clickBtn, playBtn);
@@ -95,6 +123,7 @@ function renderMenubar() {
   const m = session.screenModel();
   keyPill.textContent = m.keySelect ? 'KEY?' : m.keyName.toUpperCase();
   bpmPill.textContent = `${m.tempo} BPM`;
+  if (document.activeElement !== bpmInput) bpmInput.value = m.tempo;
   playBtn.innerHTML = '';
   playBtn.append(spriteImg(m.playing ? 'stop' : 'play', 2), m.playing ? 'STOP' : 'PLAY');
   playBtn.classList.toggle('on', m.playing);

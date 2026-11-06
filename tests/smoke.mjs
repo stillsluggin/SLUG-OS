@@ -40,6 +40,30 @@ await page.evaluate(() => { const s = window.__slug.session; s.keyDown(5); s.key
 R.chord = await page.textContent('.now-name');
 R.chordLevel = await level(page, 400);
 await page.keyboard.down('ArrowUp'); await page.waitForTimeout(60); R.bent = await page.textContent('.now-name'); await page.keyboard.up('ArrowUp');
+// BPM pop-up (not the drums page)
+await page.tap('.menubar .pill >> nth=1');
+R.bpmPopup = await page.evaluate(() => document.querySelector('.bpmpop').classList.contains('open') && !document.querySelector('.page.on').textContent.includes('Boom Bap'));
+await page.tap('.bpmrow .bevel >> nth=1'); await page.tap('.bpmrow .bevel >> nth=1');
+R.bpmPlus = await page.evaluate(() => window.__slug.session.state.tempo);
+await page.fill('.bpmnum', '121'); await page.press('.bpmnum', 'Enter');
+R.bpmTyped = await page.evaluate(() => window.__slug.session.state.tempo);
+await page.tap('.bpm-win .win-title .bevel');
+await page.evaluate(() => window.__slug.session.setTempo(88));
+// key change transposes
+await page.evaluate(() => { const s = window.__slug.session; s.keyDown(5); s.keyUp(5); s.setKey({ tonic: 5, mode: 'minor' }); });
+await page.waitForTimeout(100);
+R.transposed = await page.textContent('.now-name');
+await page.evaluate(() => window.__slug.session.setKey({ tonic: 2, mode: 'minor' }));
+// preset change cuts the old sound
+R.presetSwap = await page.evaluate(async () => {
+  const { session, app } = window.__slug;
+  session.keyDown(0); session.keyUp(0);
+  await new Promise((r) => setTimeout(r, 200));
+  const before = app.audio.activeVoices();
+  session.cyclePreset(0);
+  await new Promise((r) => setTimeout(r, 120));
+  return { before, after: app.audio.activeVoices(), voicing: session.state.voicing.length };
+});
 // chord history
 await page.evaluate(() => { const s = window.__slug.session; for (const i of [0, 9, 4]) { s.keyDown(i); s.keyUp(i); } });
 await page.waitForTimeout(100);

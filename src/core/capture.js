@@ -9,7 +9,8 @@
 // A part is { notes: [{ pos, midi, vel, dur }] } with pos/dur in beats inside
 // a loop of `loopBeats` beats.
 
-export const PART_PLAYERS = ['melody', 'bass', 'soloist'];
+// HARMONY's part is single notes you play on top of the chords (the chords keep playing).
+export const PART_PLAYERS = ['harmony', 'melody', 'bass', 'soloist'];
 export const REC_MODES = ['OVERDUB', 'REPLACE'];
 
 const NICE_LENGTHS = [1, 2, 4, 8, 12, 16];

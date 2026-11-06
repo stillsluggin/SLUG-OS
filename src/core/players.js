@@ -22,39 +22,121 @@ export const HARMONY_MODES = ['COMP', 'SUSTAIN', 'STRUM', 'ARP'];
 export { BASS_MODES };
 
 // ---------------------------------------------------------------- rhythms
-// Per style. Steps are 16ths in a bar.
+// Per style. Steps are 16ths in a bar. Each style has several comping and
+// strum patterns and 4 bars of bass; FORM says which pattern each bar of a
+// 4-bar phrase uses (the last bar is usually a turnaround), so the band never
+// plays the exact same bar over and over.
+//   comps:  [ [step, length, velocity], ... ] per pattern
+//   strums: [ [step, velocity], ... ] per pattern
+//   bass:   one row per bar: [step, tone, length, velocity]  (tones: R 5 8 3 b7 apr)
+//   arp:    steps per arpeggio note (2 = 8ths, 1 = 16ths, 4 = quarters)
 export const STYLE_FEEL = {
+  // BREATHE (id nujabes): laid back, lazy pushes, lyrical.
   nujabes: {
-    late: 0.014, // laid back
-    comp: [[0, 6, 0.8], [7, 2, 0.42], [10, 5, 0.62]],
-    strum: [[0, 0.8], [6, 0.5], [10, 0.65]],
+    late: 0.014, form: [0, 1, 0, 2], arp: 2,
+    comps: [
+      [[0, 6, 0.8], [7, 2, 0.42], [10, 5, 0.62]],
+      [[0, 3, 0.75], [3, 3, 0.5], [10, 6, 0.6]],
+      [[0, 6, 0.8], [8, 2, 0.5], [11, 2, 0.45], [14, 2, 0.55]],
+    ],
+    strums: [[[0, 0.8], [6, 0.5], [10, 0.65]], [[0, 0.8], [3, 0.45], [8, 0.6], [14, 0.4]]],
     bass: [
       [[0, 'R', 5, 0.9], [6, 'R', 1, 0.55], [8, '5', 3, 0.75], [11, '8', 2, 0.6], [14, 'R', 2, 0.7]],
       [[0, 'R', 5, 0.9], [6, '5', 2, 0.62], [8, 'b7', 2, 0.7], [10, '8', 3, 0.7], [15, 'apr', 1, 0.6]],
+      [[0, 'R', 3, 0.9], [3, 'R', 2, 0.55], [7, '5', 1, 0.6], [8, '8', 4, 0.75], [14, '5', 2, 0.6]],
+      [[0, 'R', 5, 0.9], [6, '3', 2, 0.6], [8, '5', 2, 0.7], [11, 'b7', 1, 0.6], [12, '8', 2, 0.7], [15, 'apr', 1, 0.65]],
     ],
     melodyDensity: 0.45, soloDensity: 0.55,
   },
+  // FOCUS (id tyler): long floating chords, open space.
   tyler: {
-    late: 0.006,
-    comp: [[0, 8, 0.72], [8, 8, 0.55]],
-    strum: [[0, 0.75], [8, 0.6]],
+    late: 0.006, form: [0, 0, 1, 2], arp: 2,
+    comps: [
+      [[0, 8, 0.72], [8, 8, 0.55]],
+      [[0, 12, 0.7], [12, 4, 0.5]],
+      [[0, 4, 0.65], [6, 4, 0.5], [12, 4, 0.55]],
+    ],
+    strums: [[[0, 0.75], [8, 0.6]], [[0, 0.75], [6, 0.5], [12, 0.6]]],
     bass: [
       [[0, 'R', 7, 0.85], [8, '5', 5, 0.7], [14, 'apr', 2, 0.6]],
       [[0, 'R', 6, 0.85], [7, '8', 1, 0.55], [8, '3', 5, 0.7], [15, 'apr', 1, 0.6]],
+      [[0, 'R', 12, 0.85], [12, '5', 4, 0.6]],
+      [[0, 'R', 4, 0.85], [6, '8', 2, 0.6], [8, '5', 4, 0.7], [12, 'b7', 2, 0.6], [15, 'apr', 1, 0.6]],
     ],
     melodyDensity: 0.4, soloDensity: 0.5,
   },
+  // STOMP (id motown): backbeat chops, busy bass.
   motown: {
-    late: 0,
-    comp: [[0, 2, 0.5], [4, 2, 0.8], [10, 1, 0.45], [12, 2, 0.8]],
-    strum: [[4, 0.8], [12, 0.8], [14, 0.4]],
+    late: 0, form: [0, 1, 0, 2], arp: 2,
+    comps: [
+      [[0, 2, 0.5], [4, 2, 0.8], [10, 1, 0.45], [12, 2, 0.8]],
+      [[4, 2, 0.8], [7, 1, 0.5], [12, 2, 0.8], [15, 1, 0.45]],
+      [[0, 1, 0.6], [2, 1, 0.5], [4, 2, 0.85], [8, 1, 0.55], [10, 1, 0.6], [12, 2, 0.85], [14, 1, 0.5]],
+    ],
+    strums: [[[4, 0.8], [12, 0.8], [14, 0.4]], [[0, 0.5], [4, 0.85], [10, 0.45], [12, 0.85]]],
     bass: [
       [[0, 'R', 2, 0.95], [3, 'R', 1, 0.6], [4, '5', 2, 0.75], [6, '8', 1, 0.7], [8, 'R', 2, 0.9], [10, '3', 1, 0.65], [11, '5', 1, 0.7], [12, '8', 2, 0.8], [15, 'apr', 1, 0.65]],
       [[0, 'R', 2, 0.95], [3, '8', 1, 0.6], [4, '5', 2, 0.75], [6, 'R', 1, 0.7], [8, 'b7', 2, 0.85], [10, '5', 1, 0.65], [11, '3', 1, 0.7], [12, 'R', 2, 0.8], [14, '5', 1, 0.6], [15, 'apr', 1, 0.65]],
+      [[0, 'R', 1, 0.95], [2, 'R', 1, 0.6], [4, '8', 1, 0.75], [6, '5', 1, 0.7], [8, 'R', 1, 0.9], [9, '3', 1, 0.6], [10, '5', 1, 0.7], [12, '8', 1, 0.8], [13, 'b7', 1, 0.6], [14, '5', 1, 0.7], [15, 'apr', 1, 0.65]],
+      [[0, 'R', 3, 0.95], [4, '5', 2, 0.75], [7, 'R', 1, 0.6], [8, '8', 2, 0.85], [11, '5', 1, 0.65], [12, '3', 2, 0.75], [14, '5', 1, 0.6], [15, 'apr', 1, 0.7]],
     ],
     melodyDensity: 0.6, soloDensity: 0.65,
   },
+  // CRUISE: G-funk. Slow bounce, chords on the "and", long gliding bass.
+  cruise: {
+    late: 0.01, form: [0, 1, 0, 2], arp: 2,
+    comps: [
+      [[0, 3, 0.7], [6, 2, 0.5], [8, 3, 0.65], [14, 2, 0.45]],
+      [[0, 8, 0.6], [10, 2, 0.5], [12, 3, 0.55]],
+      [[0, 2, 0.7], [3, 2, 0.5], [8, 2, 0.65], [11, 2, 0.5], [14, 2, 0.5]],
+    ],
+    strums: [[[0, 0.7], [8, 0.65]], [[0, 0.7], [6, 0.5], [10, 0.6]]],
+    bass: [
+      [[0, 'R', 3, 0.95], [3, '8', 1, 0.6], [4, 'R', 2, 0.7], [8, '5', 3, 0.8], [11, 'b7', 1, 0.6], [12, '8', 2, 0.7], [14, 'apr', 2, 0.65]],
+      [[0, 'R', 6, 0.95], [7, '5', 1, 0.6], [8, '8', 4, 0.8], [14, 'b7', 2, 0.65]],
+      [[0, 'R', 3, 0.95], [4, '3', 2, 0.65], [6, '5', 2, 0.7], [8, 'R', 3, 0.85], [12, '8', 3, 0.75], [15, 'apr', 1, 0.6]],
+      [[0, 'R', 4, 0.95], [6, '8', 2, 0.65], [8, '5', 2, 0.75], [10, 'b7', 2, 0.65], [12, '8', 2, 0.7], [14, 'apr', 2, 0.65]],
+    ],
+    melodyDensity: 0.45, soloDensity: 0.6,
+  },
+  // BLOOM: gospel-tinged neo-soul. Very behind the beat, pushes and ghost stabs.
+  bloom: {
+    late: 0.022, form: [0, 1, 0, 2], arp: 1,
+    comps: [
+      [[0, 2, 0.65], [3, 4, 0.55], [10, 3, 0.6]],
+      [[0, 1, 0.5], [2, 5, 0.7], [9, 2, 0.5], [12, 3, 0.6]],
+      [[0, 4, 0.7], [6, 2, 0.5], [8, 2, 0.6], [12, 1, 0.5], [14, 2, 0.6]],
+    ],
+    strums: [[[0, 0.7], [3, 0.5], [10, 0.6]], [[2, 0.7], [9, 0.5], [12, 0.6]]],
+    bass: [
+      [[0, 'R', 3, 0.9], [3, '5', 2, 0.6], [6, '8', 1, 0.55], [8, 'R', 2, 0.8], [10, 'b7', 2, 0.6], [13, '5', 1, 0.55], [14, 'apr', 2, 0.6]],
+      [[0, 'R', 2, 0.9], [2, 'R', 1, 0.5], [3, '3', 2, 0.6], [7, '5', 1, 0.6], [8, '8', 3, 0.75], [12, 'b7', 2, 0.6], [15, 'apr', 1, 0.6]],
+      [[0, 'R', 4, 0.9], [5, '5', 1, 0.55], [6, '8', 2, 0.65], [10, '5', 2, 0.6], [12, 'R', 2, 0.7], [14, '3', 1, 0.55], [15, 'apr', 1, 0.6]],
+      [[0, 'R', 3, 0.9], [4, 'b7', 2, 0.6], [6, '5', 2, 0.6], [8, '8', 2, 0.75], [11, '5', 1, 0.6], [12, '3', 2, 0.65], [14, 'apr', 2, 0.6]],
+    ],
+    melodyDensity: 0.5, soloDensity: 0.6,
+  },
+  // DRIFT: calm and spacious. Long pads, very few bass notes, slow arpeggios.
+  drift: {
+    late: 0.03, form: [0, 0, 1, 2], arp: 4,
+    comps: [
+      [[0, 16, 0.55]],
+      [[0, 8, 0.5], [8, 8, 0.45]],
+      [[0, 12, 0.5], [12, 4, 0.4]],
+    ],
+    strums: [[[0, 0.55]], [[0, 0.5], [8, 0.4]]],
+    bass: [
+      [[0, 'R', 14, 0.7]],
+      [[0, 'R', 8, 0.7], [8, '5', 8, 0.55]],
+      [[0, 'R', 12, 0.7], [12, '8', 4, 0.5]],
+      [[0, 'R', 6, 0.7], [8, '5', 6, 0.55], [14, 'apr', 2, 0.45]],
+    ],
+    melodyDensity: 0.3, soloDensity: 0.35,
+  },
 };
+
+/** Which pattern bar `bar` uses in the 4-bar form. */
+export const formIndex = (f, bar) => (f.form || [0])[bar % (f.form || [0]).length];
 
 const feelOf = (style) => STYLE_FEEL[style] || STYLE_FEEL.nujabes;
 
@@ -70,7 +152,7 @@ export function harmonyEvents(s, ctx) {
       if (s === 0 || chordStart) ev.push({ player: 'harmony', notes: voicing, vel: 0.7, dur: 16, late: f.late });
       break;
     case 'STRUM':
-      for (const [st, vel] of f.strum) {
+      for (const [st, vel] of f.strums[formIndex(f, ctx.bar ?? 0) % f.strums.length]) {
         if (st !== s) continue;
         const down = (s / 2) % 2 === 0;
         const order = down ? voicing : [...voicing].reverse();
@@ -78,16 +160,19 @@ export function harmonyEvents(s, ctx) {
       }
       break;
     case 'ARP': {
-      // Up-and-down 8ths over the voicing plus an octave.
-      if (s % 2) break;
+      // Up-and-down over the voicing plus an octave, at the style's speed.
+      const r = f.arp || 2;
+      if (s % r) break;
       const up = [...voicing, voicing[0] + 12];
       const cycle = [...up, ...up.slice(1, -1).reverse()];
-      const n = cycle[(s / 2) % cycle.length];
-      ev.push({ player: 'harmony', notes: [n], vel: s % 8 === 0 ? 0.75 : 0.55, dur: 3, late: f.late });
+      const n = cycle[(s / r) % cycle.length];
+      ev.push({ player: 'harmony', notes: [n], vel: s % 8 === 0 ? 0.75 : 0.55, dur: r * 1.5, late: f.late });
       break;
     }
-    default: // COMP
-      for (const [st, len, vel] of f.comp) if (st === s) ev.push({ player: 'harmony', notes: voicing, vel, dur: len, late: f.late });
+    default: { // COMP
+      const comp = f.comps[formIndex(f, ctx.bar ?? 0) % f.comps.length];
+      for (const [st, len, vel] of comp) if (st === s) ev.push({ player: 'harmony', notes: voicing, vel, dur: len, late: f.late });
+    }
   }
   return ev;
 }
@@ -104,7 +189,7 @@ export function bassEvents(s, ctx, mem) {
     if (s === 0 || !mem.walk) mem.walk = walkingBar(chord, nextChord, key, root, rng);
     return [{ player: 'bass', notes: [mem.walk[s / 4]], vel: s === 0 ? 0.9 : 0.72, dur: 3.6, late: 0 }];
   }
-  const rows = feelOf(style).bass[bar % 2];
+  const rows = feelOf(style).bass[bar % feelOf(style).bass.length];
   const out = [];
   let hit = 0;
   for (const [st, tone, len, vel] of rows) {
@@ -120,6 +205,9 @@ const MOTIF_RHYTHMS = {
   nujabes: [[0, 3, 6, 12, 18], [2, 6, 8, 16, 22, 24], [0, 4, 10, 16, 20]],
   tyler: [[0, 6, 12, 20], [4, 8, 16, 24, 28], [0, 10, 14, 22]],
   motown: [[0, 2, 6, 8, 12, 16, 18, 22], [2, 4, 8, 14, 18, 20, 24], [0, 3, 6, 10, 16, 19, 22]],
+  cruise: [[0, 4, 6, 12, 20], [2, 8, 10, 16, 24], [0, 3, 8, 14, 18, 22]],
+  bloom: [[1, 3, 6, 9, 14, 18, 21], [0, 2, 5, 10, 16, 19, 24], [3, 6, 8, 12, 17, 22]],
+  drift: [[0, 8, 16], [4, 12, 24], [0, 12, 20]],
 };
 
 function scaleNotes(key, low, high) {

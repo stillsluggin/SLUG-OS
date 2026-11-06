@@ -66,6 +66,21 @@ clean.
 | High white | the strum plate: plays the **focused player** (tap a snail to focus it). Notes always fit the chord. Slide across them. With the DRUMMER focused they play drums |
 | High black | NEXT (best next chord), NOST, EMO, CALM, SURP, REST |
 
+### Key, tempo and style
+
+- **Key** (top bar): tap it, then press a key for the new tonic (press the
+  tonic again to flip major/minor). The **whole project transposes**: the chord
+  playing, the chord sequencer, Chord History and your recorded parts all move
+  with it. Major ↔ minor moves every chord to the same step of the new scale.
+- **BPM** (top bar): opens a small TEMPO window. Tap − / + (hold to keep
+  going), or tap the number and type a tempo (40–220).
+- **Styles** (STYLE knob): **BREATHE** (laid back, minor 9ths, ii–V loops),
+  **FOCUS** (floating maj7#11, chromatic slides), **STOMP** (I–vi–IV–V,
+  backbeat), **CRUISE** (G-funk sway, 9ths, gliding bass), **BLOOM** (gospel
+  neo-soul, 11ths/13ths, passing chords), **DRIFT** (calm, open sus chords,
+  long pads). Each style changes its comping, strumming and bass from bar to
+  bar over a 4-bar phrase.
+
 ### Chord History
 
 Every chord you play (with its bends and exact voicing) leaves a trail next
@@ -88,7 +103,9 @@ capture, `Backspace` undo.
 ### Recording parts live: OVERDUB / REPLACE
 
 Press **REC** (BAND page or Parts on SEQ), start the band, tap a snail
-(MELODY, BASS or SOLOIST) and play the strum plate. Your notes go into that
+(HARMONY, MELODY, BASS or SOLOIST) and play the strum plate. With HARMONY
+focused your notes layer on top of the chords. With the DRUMMER focused, your
+drum hits overdub into the drum pattern. Your notes go into that
 player's part, snapped to 16ths. While recording, the top bar shows a red
 **● OVERDUB** or **● REPLACE** badge (tap it to switch; the BAND page REC
 button shows the mode too).
@@ -125,7 +142,7 @@ modes: ROOT, SLASH, ROOT-FIFTH, OCTAVE, WALKING, PEDAL.
 ### Next Chord, Your Way
 
 After every chord: the single best next chord plus NOSTALGIC, EMOTIONAL, CALM
-and SURPRISE choices, in Nujabes, Tyler or Motown style (STYLE knob). Stays in
+and SURPRISE choices, in BREATHE, FOCUS, STOMP, CRUISE, BLOOM or DRIFT style (STYLE knob). Stays in
 key; only SURPRISE borrows. Tune it in [`src/core/nextChord.js`](src/core/nextChord.js).
 
 ### Knobs and buttons

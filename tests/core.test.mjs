@@ -365,3 +365,101 @@ test('live recording: OVERDUB layers, REPLACE wipes from your first note, UNDO p
   assert.ok(s.undo());
   assert.equal(s.state.parts.melody.length, 2);
 });
+
+test('fix: changing preset or engine cuts the old sound and replays the held chord', () => {
+  const out = fakeOut();
+  const s = createSession(out, { rng });
+  s.keyDown(5); s.keyUp(5); // chord held (latched), band stopped
+  out.log.length = 0;
+  s.cyclePreset(0);
+  assert.ok(out.log.some((e) => e[0] === 'cut' && e[1] === 'harmony'), 'old sound cut');
+  assert.equal(out.log.filter((e) => e[0] === 'on' && e[1] === 'harmony').length, s.state.voicing.length, 'chord replayed with the new sound');
+  out.log.length = 0;
+  s.cycleEngine(2);
+  assert.ok(out.log.some((e) => e[0] === 'cut' && e[1] === 'bass'));
+  assert.ok(out.log.some((e) => e[0] === 'on' && e[1] === 'bass'));
+});
+
+test('fix: notes played over the chords (HARMONY focused) and drum hits overdub while recording', () => {
+  const out = fakeOut();
+  let now = 0;
+  out.now = () => now;
+  const s = createSession(out, { rng });
+  const sd = s.stepDur();
+  const plate = KEYS.filter((x) => x.section === 'plate').map((x) => x.index);
+  s.keyDown(5); s.keyUp(5);
+  s.setPlaying(true);
+  s.setRec(true);
+  assert.equal(s.state.focus, 0, 'HARMONY is focused by default');
+  const run = (from, to, fn) => { for (let n = from; n < to; n++) { now = n * sd; s.step(n, n * sd); fn && fn(n); } };
+  run(0, 64, (n) => { if (n === 8 || n === 24) s.keyDown(plate[3]); if (n === 10 || n === 26) s.keyUp(plate[3]); });
+  assert.equal(s.state.parts.harmony.length, 2, 'harmony notes recorded');
+  // They play back on top of the chords
+  out.log.length = 0;
+  run(64, 128);
+  const harmonyPlays = out.log.filter((e) => e[0] === 'play' && e[1] === 'harmony');
+  assert.ok(harmonyPlays.length > 2, 'chords still play');
+  assert.ok(harmonyPlays.some((e) => e[2] === s.state.parts.harmony[0].midi), 'and the recorded note plays too');
+  // Drummer: hits land in the drum pattern
+  s.setPattern(Object.fromEntries(Object.keys(s.state.drums.pattern).map((l) => [l, Array(16).fill(0)])));
+  s.focus(4);
+  run(128, 128 + 6, (n) => { if (n === 128 + 4) { s.keyDown(plate[0]); s.keyUp(plate[0]); } });
+  assert.equal(s.state.drums.pattern.kick[4], 2, 'kick overdubbed on step 5');
+  assert.ok(s.undo());
+  assert.equal(s.state.drums.pattern.kick[4], 0, 'undo takes the drum pass back');
+});
+
+import { chordMapper, noteMapper, keyShift } from '../src/core/transpose.js';
+
+test('transpose: changing key moves the whole project', () => {
+  assert.equal(keyShift(2, 5), 3);
+  assert.equal(keyShift(2, 11), -3);
+  const out = fakeOut();
+  const s = createSession(out, { rng });
+  // A loop in D minor: Dm Gm Am, plus a bass part and history
+  s.seqAuto();
+  const k = (deg) => KEYS.find((x) => x.section === 'chord' && x.degree === deg).index;
+  for (const d of [0, 3, 4]) { s.keyDown(k(d)); s.keyUp(k(d)); }
+  s.state.parts.bass = [{ pos: 0, midi: 38, vel: 0.8, dur: 1 }]; // D
+  const seqBefore = s.state.seq.steps.slice(0, 4).map((c) => s.chordName(c));
+  s.setKey({ tonic: 5, mode: 'minor' }); // to F minor: up 3
+  assert.equal(s.screenModel().keyName, 'F minor');
+  assert.equal(s.screenModel().chordName, 'Cm', 'the playing chord (Am) moves to Cm');
+  assert.deepEqual(s.trail.entries.slice(-3).map((e) => e.name), ['Fm', 'Bbm', 'Cm']);
+  assert.equal(s.state.parts.bass[0].midi, 41, 'bass part D -> F');
+  const seqAfter = s.state.seq.steps.slice(0, 4).map((c) => s.chordName(c));
+  assert.notDeepEqual(seqAfter, seqBefore);
+  // Flip to F major: same degrees, major colours
+  s.setKey({ tonic: 5, mode: 'major' });
+  assert.equal(s.screenModel().chordName, 'C', 'v (Cm) becomes V (C)');
+  assert.deepEqual(s.trail.entries.slice(-3).map((e) => e.name), ['F', 'Bb', 'C']);
+  // Notes in the scale move to the same degree: Ab (b3 in F minor) -> A (3 in F major)
+  const nm = noteMapper({ tonic: 5, mode: 'minor' }, { tonic: 5, mode: 'major' });
+  assert.equal(nm(56), 57);
+  const cm = chordMapper({ tonic: 0, mode: 'major' }, { tonic: 0, mode: 'minor' });
+  assert.equal(s.chordName.call(null, cm(makeChord(5, 'maj7'))), 'Fm7', 'IVmaj7 -> iv7 in minor');
+});
+
+import { STYLE_LABELS } from '../src/core/nextChord.js';
+
+test('styles: renamed, six of them, each plays the full band with variation', () => {
+  assert.deepEqual(STYLE_IDS.map((id) => STYLE_LABELS[id]), ['BREATHE', 'FOCUS', 'STOMP', 'CRUISE', 'BLOOM', 'DRIFT']);
+  for (const style of STYLE_IDS) {
+    const out = fakeOut();
+    const s = createSession(out, { rng });
+    s.state.style = style;
+    s.state.players.forEach((p, i) => { while (s.state.players[i].mode !== 'FOLLOW') s.cycleMode(i); });
+    s.setPlaying(true);
+    out.log.length = 0;
+    const bars = [];
+    for (let n = 0; n < 64; n++) {
+      const before = out.log.length;
+      s.step(n, n * 0.17);
+      if (n % 16 === 0) bars.push([]);
+      bars[bars.length - 1].push(...out.log.slice(before).filter((e) => e[0] === 'play' && (e[1] === 'harmony' || e[1] === 'bass')).map((e) => `${n % 16}:${e[1]}`));
+    }
+    for (const p of ['harmony', 'bass', 'melody', 'soloist']) assert.ok(out.log.some((e) => e[0] === 'play' && e[1] === p), `${style}: ${p} plays`);
+    assert.ok(out.log.some((e) => e[0] === 'drum'), `${style}: drums`);
+    assert.ok(new Set(bars.map((b) => b.join())).size >= 2, `${style}: bars vary`);
+  }
+});

@@ -323,6 +323,15 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .xyh { position: absolute; font-family: var(--px); font-size: 8px; color: var(--slime); pointer-events: none; opacity: .8; }
 .xyh.xh { right: 6px; bottom: 6px; }
 .xyh.yh { left: 6px; top: 6px; }
+/* BPM pop-up */
+.bpm-win { width: min(300px, 100%); }
+.bpmrow { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 0; }
+.bpmrow .bevel.big { font-family: var(--vt); font-size: 34px; padding: 4px 18px; min-height: 52px; }
+.bpmbox { display: flex; flex-direction: column; align-items: center; }
+.bpmnum { width: 96px; font-family: var(--vt); font-size: 48px; line-height: 1; text-align: center; border: 2px solid var(--ink); background: var(--cream); color: var(--ink); padding: 0; -moz-appearance: textfield; }
+.bpmnum::-webkit-inner-spin-button, .bpmnum::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+.bpmbox small { font-family: var(--px); font-size: 8px; margin-top: 2px; }
+
 /* Shell Shock */
 .loaders { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
 .loader { justify-content: space-between; min-height: 40px; gap: 6px; padding: 4px 8px; }

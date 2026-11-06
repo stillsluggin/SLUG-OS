@@ -2,6 +2,31 @@
 
 All notable changes to Slug OS, newest first. Written for players, not programmers.
 
+## Unreleased (branch claude/global-fixes)
+
+### Changed
+- **Changing the key transposes the whole project** (chord playing, chord
+  sequencer, Chord History, recorded parts). Major ↔ minor moves chords and
+  notes to the same scale step in the new mode.
+- **BPM button opens a TEMPO window** (− / +, hold to repeat, or type a number)
+  instead of jumping to the drums page.
+- **Styles renamed**: BREATHE (was Nujabes), FOCUS (was Tyler), STOMP (was
+  Motown). Saved projects keep their style.
+
+### Added
+- **Three new styles**: CRUISE (G-funk), BLOOM (gospel neo-soul), DRIFT (calm,
+  spacious), each with its own Next Chord moves and grooves.
+- **More variation**: every style now changes its comping, strum and bass
+  patterns over a 4-bar phrase, with a turnaround bar; arpeggio speed per style.
+
+### Fixed
+- **Changing a preset or engine** now cuts the old sound immediately and plays
+  the held chord / bass note again with the new sound.
+- **Overdubbing notes**: with REC on, notes played with HARMONY focused (the
+  default) were not recorded. They now overdub into a HARMONY part on top of
+  the chords, and drum hits with the DRUMMER focused overdub into the pattern.
+  UNDO covers both.
+
 ## Unreleased (branch claude/shell-shock)
 
 ### Changed

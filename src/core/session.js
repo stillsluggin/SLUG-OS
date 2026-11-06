@@ -26,6 +26,7 @@ import { drumEvents, generateBoomBap, LANES } from './drums.js';
 import { createSeq, seqPosition, seqChordAt, hasChords, autoFill } from './chordSeq.js';
 import { KEYS, KNOBS, BEND_INFO } from './controls.js';
 import { createTrail } from './trail.js';
+import { chordMapper, noteMapper } from './transpose.js';
 import { PART_PLAYERS, REC_MODES, captureChords, captureNotes, mergePart, notesIn, emptyParts, cloneParts, snap16 } from './capture.js';
 
 const DEFAULT_PLAYERS = [
@@ -92,7 +93,7 @@ export function createSession(out, { rng = Math.random } = {}) {
   }
   const heldNotes = new Map(); // plate key -> logged note (to fill in its length)
   const undoStack = [];
-  const snapshot = (label) => ({ label, seq: JSON.parse(JSON.stringify(state.seq)), parts: cloneParts(state.parts), partBeats: state.partBeats });
+  const snapshot = (label) => ({ label, seq: JSON.parse(JSON.stringify(state.seq)), parts: cloneParts(state.parts), partBeats: state.partBeats, drums: JSON.parse(JSON.stringify(state.drums.pattern)) });
   function pushUndo(label) {
     undoStack.push(snapshot(label));
     if (undoStack.length > 20) undoStack.shift();
@@ -354,6 +355,14 @@ export function createSession(out, { rng = Math.random } = {}) {
       const lanes = [...LANES, 'kick', 'snare', 'hat'];
       out.drum(lanes[pos], pos >= 6 ? vel * 0.5 : vel, out.now());
       hits(['drummer'], out.now());
+      // REC + band playing: drum hits overdub into the drum pattern, snapped to 16ths.
+      if (state.seq.rec && state.playing) {
+        const st16 = ((Math.round(beatNow() * 4) % 16) + 16) % 16;
+        const row = state.drums.pattern[lanes[pos]];
+        row[st16] = Math.max(row[st16], pos >= 6 ? 1 : 2);
+        passDirty = true;
+        emit();
+      }
       return;
     }
     const notes = plateNotes(p.id, harmonyNow(), state.key);
@@ -446,17 +455,47 @@ export function createSession(out, { rng = Math.random } = {}) {
   }
 
   function chooseKey(pc) {
-    state.key = pc === state.key.tonic
+    const newKey = pc === state.key.tonic
       ? { tonic: pc, mode: state.key.mode === 'minor' ? 'major' : 'minor' }
       : { tonic: pc, mode: state.key.mode };
     keyChosenWhileHeld = true;
     if (!state.buttonsHeld.has('key')) state.keySelect = false;
-    chordStack.length = 0;
-    state.base = null;
-    state.history = [];
-    refresh();
+    setKey(newKey);
+  }
+
+  /**
+   * Change key and TRANSPOSE THE WHOLE PROJECT with it: the chord playing, the
+   * chord sequencer, Chord History, the recorded parts and what CAPTURE has
+   * heard. Drums and sampler pads are left alone (they aren't in a key).
+   */
+  function setKey(newKey) {
+    const oldKey = state.key;
+    if (oldKey.tonic === newKey.tonic && oldKey.mode === newKey.mode) return;
+    const mc = chordMapper(oldKey, newKey);
+    const mn = noteMapper(oldKey, newKey);
+    state.key = newKey;
+    state.seq.steps = state.seq.steps.map(mc);
+    state.history = state.history.map(mc);
+    for (const e of trail.entries) {
+      e.chord = mc(e.chord);
+      e.voicing = e.voicing.map(mn);
+      e.name = chordName(e.chord, newKey);
+      e.roman = romanOf(e.chord, newKey);
+    }
+    for (const id of PART_PLAYERS) for (const n of state.parts[id]) n.midi = mn(n.midi);
+    for (const g of listen) {
+      for (const c of g.chords) { c.chord = mc(c.chord); c.name = chordName(c.chord, newKey); }
+      for (const n of g.notes) n.midi = mn(n.midi);
+    }
+    for (const e of chordStack) e.chord = mc(e.chord);
+    if (state.base) {
+      state.base = mc(state.base);
+      state.voicing = state.voicing.map(mn);
+      refresh({ fresh: true, vel: 0.7, quiet: state.playing, voicing: state.voicing });
+    }
     refreshSuggestions();
-    toast(keyName(state.key).toUpperCase());
+    toast(`${keyName(newKey).toUpperCase()} · TRANSPOSED`);
+    emit();
   }
 
   function buttonDown(id) {
@@ -520,6 +559,14 @@ export function createSession(out, { rng = Math.random } = {}) {
     toast(on ? 'PLAY' : 'STOP');
   }
 
+  /** Set the tempo directly (the BPM pop-up). 40..220 BPM. */
+  function setTempo(bpm) {
+    const t = Math.round(Math.max(40, Math.min(220, Number(bpm) || state.tempo)));
+    if (t === state.tempo) return;
+    state.tempo = t;
+    emit();
+  }
+
   /** Metronome: one press on, one press off. Follows TEMPO. */
   function toggleMetronome(on = !state.metronome) {
     state.metronome = on;
@@ -555,11 +602,24 @@ export function createSession(out, { rng = Math.random } = {}) {
     emit();
   }
 
+  /**
+   * Switching sound: cut whatever the old sound was still holding, and if a
+   * chord (or bass note) is being held, strike it again with the new sound.
+   */
+  function swapSound(id) {
+    const t = out.now();
+    out.cutPlayer(id, t);
+    if (state.playing || !state.chord || !follows(id)) return;
+    if (id === 'harmony') state.voicing.forEach((n, k) => out.noteOn('harmony', n, 0.75, { time: t + 0.02 + k * 0.007 }));
+    if (id === 'bass' && state.bassNote != null) out.noteOn('bass', state.bassNote, 0.75, { time: t + 0.02 });
+  }
+
   function cycleEngine(i, dir = 1) {
     const p = state.players[i];
     if (!p.slot) return;
     p.slot = engineSlot(cycle(ENGINE_IDS, p.slot.engine, dir), 0);
     syncPlayer(p.id);
+    swapSound(p.id);
     toast(`${PLAYER_NAMES[p.id]} · ${ENGINES[p.slot.engine].name}`);
     emit();
   }
@@ -570,6 +630,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     const n = ENGINES[p.slot.engine].presets.length;
     p.slot = engineSlot(p.slot.engine, (p.slot.preset + dir + n) % n);
     syncPlayer(p.id);
+    swapSound(p.id);
     toast(ENGINES[p.slot.engine].presets[p.slot.preset].name.toUpperCase());
     emit();
   }
@@ -590,7 +651,7 @@ export function createSession(out, { rng = Math.random } = {}) {
   function knobValue(i) {
     const p = state.players[state.focus];
     switch (KNOBS[i].id) {
-      case 'tempo': return (state.tempo - 60) / 90;
+      case 'tempo': return Math.max(0, Math.min(1, (state.tempo - 60) / 90));
       case 'swing': return state.swing;
       case 'human': return state.human;
       case 'style': return (STYLE_IDS.indexOf(state.style) + 0.5) / STYLE_IDS.length;
@@ -799,6 +860,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     state.seq = { ...JSON.parse(JSON.stringify(snap.seq)), rec: state.seq.rec };
     state.parts = cloneParts(snap.parts);
     state.partBeats = snap.partBeats;
+    if (snap.drums) state.drums.pattern = JSON.parse(JSON.stringify(snap.drums));
   }
 
   function clearPart(id) {
@@ -880,7 +942,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     keyDown, keyUp, buttonDown, buttonUp, pickDown, pickUp, setBend,
     focus, cycleMode, cycleEngine, cyclePreset, cycleFeel, toggleBassLatch, setPlaying,
     knob, knobValue, knobLabel, knobText,
-    seqSelect, seqSet, seqClear, seqAuto, toggleMetronome,
+    seqSelect, seqSet, seqClear, seqAuto, toggleMetronome, setKey, setTempo,
     historyBack, historyForward, historyGo, capture, undo, clearPart, setRec, toggleRecMode,
     partLoopBeats, get canUndo() { return undoStack.length > 0 || (state.seq.rec && passDirty); },
     get trail() { return trail; },

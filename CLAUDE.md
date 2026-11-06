@@ -173,6 +173,26 @@ owner records its audio output into hardware samplers.
    - Effects snap back smoothly on release, with a HOLD option.
 9. **Metronome** — a simple click set by BPM, easy to switch on and off.
 
+### Next wishes (owner's list, Nov 2026, in batches)
+1. Global controls & UI: key change transposes the whole project ✅; BPM
+   button opens a small +/−/type pop-up ✅; styles renamed (BREATHE, FOCUS,
+   STOMP) with more styles and more variation ✅.
+2. Sequencing: one sequencer for the whole band (switch members inside it;
+   opening SEQ from the BAND page opens the focused member); a simple,
+   smooth FL-style piano roll; the Sampler sequenced like a band member;
+   nudge, swing, percent quantize and grid quantize (1/8, 1/16, 1/32 ...);
+   per-drum-track swing (kick, snare, hats each their own).
+3. Sound: ADSR envelope for every band member; a Mixer page with lightweight
+   effects and a simple EQ (3-band or parametric); drum effects optional; a
+   DRUM BUS plugin (transients, saturation, air, soft clipper); LO-FI (with a
+   control that cycles through eras of degradation) and a Distressor-style
+   compressor.
+4. Fixes: preset change cuts the old sound ✅; notes overdub while recording
+   over chords ✅.
+5. Sampler RESAMPLE: record what you play on pads (e.g. four hand-played hat
+   hits, keeping the human groove) into a new sample on one pad, then
+   sequence it.
+
 ### Later (leave room)
 Saving full songs and progressions, an age/vinyl knob, recording and
 resampling the whole app's output inside the app, the second sampler page.
@@ -256,6 +276,16 @@ real phone.
   and each recorded pass (one pass = one loop with REC on).
 - A player with a part plays the part instead of improvising.
 - REPLACE only starts wiping once you play; switching mode starts a new "take".
+
+### Styles, key and fixes (notes)
+- Style ids stay `nujabes`, `tyler`, `motown` (saved projects) with new labels
+  BREATHE / FOCUS / STOMP; new ids `cruise`, `bloom`, `drift`. A style = a
+  Next Chord table (`nextChord.js`), a colour rule (`colorChord`) and a groove
+  (`STYLE_FEEL` in `players.js`: comps/strums/bass + `form`).
+- `core/transpose.js` maps chords and notes between keys; `session.setKey`
+  applies it to everything key-related.
+- HARMONY has a part too (notes on top of the chords); drum hits recorded
+  live go into the drum pattern; UNDO snapshots include the drum pattern.
 
 ### Status
 Built: features 1–9 (see CHANGELOG.md). Not built yet: the "Later" list
