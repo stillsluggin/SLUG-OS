@@ -1,0 +1,17 @@
+# ---- PRIVATE AUDIO: never commit these ----
+# Your full Slugz Delight master crate, loops and any imported samples belong
+# on your device only. Slug OS stores imports in the browser (IndexedDB).
+private/
+crate/
+master-crate/
+my-samples/
+samples-private/
+loops-private/
+imports/
+*.private.*
+
+# Test output
+tests/out/
+node_modules/
+.DS_Store
+tests/fixtures/
