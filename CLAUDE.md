@@ -189,7 +189,14 @@ owner records its audio output into hardware samplers.
    compressor.
 4. Fixes: preset change cuts the old sound ✅; notes overdub while recording
    over chords ✅.
-5. Sampler RESAMPLE: record what you play on pads (e.g. four hand-played hat
+5. Hip hop focus (owner, Nov 2026): Slug OS is a hip hop sample machine for
+   hip hop samples and full tracks. More styles mixing jazz, funk, soul and
+   hip hop grooves, named for grooves, never after artists ✅. MORPH: 2–4
+   extra knobs per synth with their own names ✅. EXPORT: arrangement/loop and
+   live recording, stereo mix or multitrack, several sample rates ✅ (lo-fi
+   degradation mainly via the effects). Multitrack any sequence across
+   drums, sampler, synths and the band ✅ (stems).
+6. Sampler RESAMPLE: record what you play on pads (e.g. four hand-played hat
    hits, keeping the human groove) into a new sample on one pad, then
    sequence it.
 
@@ -286,6 +293,20 @@ real phone.
   applies it to everything key-related.
 - HARMONY has a part too (notes on top of the chords); drum hits recorded
   live go into the drum pattern; UNDO snapshots include the drum pattern.
+
+### Hip hop styles, MORPH, EXPORT (notes)
+- Styles must not be named after or credited to artists (labels, presets,
+  README). The old internal ids nujabes/tyler/motown stay only for saved
+  projects.
+- Drum feel per style: `STYLE_DRUMS` + `generateBeat()` in `core/drums.js`;
+  `state.drums.auto` says whether the beat is generated (follows the style).
+- MORPH: `ENGINES[e].morph` names + `morphDefaults`; slots have 4 knobs
+  `[A, B, M1, M2]`; `src/audio/morph.js` is a per-player colour chain mapped
+  per engine by `MORPH_MAP`. `state.morph` flips knobs A/B to the MORPH pair.
+- EXPORT: `src/audio/recorder.js` (AudioWorklet taps start/stop on exact
+  sample frames, so stems align), `src/storage/wav.js` (resample + 16/24-bit
+  WAV), `src/storage/zip.js` (store-only zip), `src/ui/exportWin.js`. Stems
+  are the player buses before the shared reverb/delay; mix = master output.
 
 ### Status
 Built: features 1–9 (see CHANGELOG.md). Not built yet: the "Later" list

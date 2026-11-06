@@ -325,6 +325,17 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .xyh { position: absolute; font-family: var(--px); font-size: 8px; color: var(--slime); pointer-events: none; opacity: .8; }
 .xyh.xh { right: 6px; bottom: 6px; }
 .xyh.yh { left: 6px; top: 6px; }
+/* EXPORT */
+.menubar .logo { cursor: pointer; }
+.menubar .logo.recording { color: var(--rose); animation: recblink 1s steps(2) infinite; }
+.export-win { width: min(420px, 100%); max-height: 88vh; }
+.export-win .win-body { overflow-y: auto; }
+.exrow { margin-top: 4px; flex-wrap: nowrap; }
+.exrow .lab { width: 54px; flex: none; }
+.exrow .seg { flex-wrap: wrap; }
+.exstatus { min-height: 2.2em; }
+.export-win .slime { margin: 8px 0 0; }
+
 /* BPM pop-up */
 .bpm-win { width: min(300px, 100%); }
 .bpmrow { display: flex; align-items: center; justify-content: center; gap: 10px; padding: 6px 0; }

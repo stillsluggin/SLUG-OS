@@ -135,6 +135,7 @@ export function createMaster(ac) {
   return {
     input, reverbIn, delayIn, analyser, stream, xy,
     direct: limiter, // for sounds that skip the effects (metronome)
+    outNode: out, // the final stereo mix (EXPORT records here)
     setTempo(bpm) { delay.delayTime.setTargetAtTime((60 / bpm) * 0.75, ac.currentTime, 0.1); xy.setTempo(bpm); },
     setTone(v) { tone.frequency.setTargetAtTime(600 * Math.pow(30, v), ac.currentTime, 0.05); },
   };

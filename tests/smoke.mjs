@@ -15,7 +15,7 @@ const level = (page, ms) => page.evaluate(async (ms) => {
   return +pk.toFixed(3);
 }, ms);
 
-const ctx = await browser.newContext({ ...devices['iPhone 13'] });
+const ctx = await browser.newContext({ ...devices['iPhone 13'], acceptDownloads: true });
 const page = await ctx.newPage();
 page.on('pageerror', (e) => errors.push(e.message));
 page.on('response', (r) => { if (r.status() === 404 && !/kit\.json$/.test(r.url())) errors.push(`404 ${r.url()}`); });
@@ -113,6 +113,42 @@ R.morph = await page.evaluate(async () => {
 for (let m = 0; m < 6; m++) await page.evaluate(() => window.__slug.session.cycleFeel(2));
 // harmony modes
 for (let m = 0; m < 4; m++) { await page.evaluate(() => window.__slug.session.cycleFeel(0)); R[`harm${m}`] = await level(page, 400); }
+// EXPORT
+await page.tap('.menubar .logo');
+R.exportOpen = await page.evaluate(() => document.querySelector('.export-wrap').classList.contains('open'));
+const exportRun = async (setup) => {
+  await page.evaluate(setup);
+  const [dl] = await Promise.all([page.waitForEvent('download', { timeout: 30000 }), (async () => {
+    await page.tap('.export-win .bevel.hot');
+    await page.waitForFunction(() => /Done:/.test(document.querySelector('.exstatus').textContent), null, { timeout: 30000 });
+    await page.tap('.export-win button:has-text("SAVE FILE")');
+  })()]);
+  const path = await dl.path();
+  return { name: dl.suggestedFilename(), bytes: fs.readFileSync(path) };
+};
+const setOpts = (o) => page.evaluate((o) => { for (const [lab, val] of Object.entries(o)) { const row = [...document.querySelectorAll('.exrow')].find((r) => r.querySelector('.lab').textContent === lab); [...row.querySelectorAll('.bevel')].find((b) => b.textContent === val).dispatchEvent(new PointerEvent('pointerdown', { bubbles: true })), [...row.querySelectorAll('.bevel')].find((b) => b.textContent === val).dispatchEvent(new PointerEvent('pointerup', { bubbles: true })); } }, o);
+await setOpts({ RECORD: 'LOOP', BARS: '1', TAIL: '0s', FORMAT: 'STEREO MIX', RATE: '22.1k', BITS: '16' }).catch(() => {});
+await setOpts({ RATE: '22.1k' }).catch(() => {});
+let ex = await exportRun(() => {});
+const rd = (b, o) => b.readUInt32LE(o);
+R.exportMix = { name: ex.name, rate: rd(ex.bytes, 24), seconds: +(rd(ex.bytes, 40) / 4 / rd(ex.bytes, 24)).toFixed(3), expect: +(4 * 60 / (await page.evaluate(() => window.__slug.session.state.tempo))).toFixed(3) };
+await setOpts({ FORMAT: 'MULTITRACK', RATE: '44.1k', BITS: '24' });
+ex = await exportRun(() => {});
+const names = []; for (let o = 0; o < ex.bytes.length - 4; o++) if (ex.bytes.readUInt32LE(o) === 0x04034b50) { const nl = ex.bytes.readUInt16LE(o + 26); names.push(ex.bytes.slice(o + 30, o + 30 + nl).toString()); }
+const sizes = []; for (let o = 0; o < ex.bytes.length - 4; o++) if (ex.bytes.readUInt32LE(o) === 0x04034b50) sizes.push(ex.bytes.readUInt32LE(o + 18));
+R.exportStems = { name: ex.name, files: names.map((n) => n.split('/').pop()), sameLength: new Set(sizes).size === 1 };
+await setOpts({ RECORD: 'LIVE', FORMAT: 'STEREO MIX' });
+await page.tap('.export-win .bevel.hot'); await page.waitForTimeout(1200);
+await page.tap('.export-win .bevel.hot');
+await page.waitForFunction(() => /Done:/.test(document.querySelector('.exstatus').textContent), null, { timeout: 30000 });
+R.exportLive = await page.textContent('.exstatus');
+await page.tap('.export-win button:has-text("SAMPLER PAD")'); await page.waitForTimeout(400);
+R.exportToPad = await page.evaluate(() => window.__slug.app.pads.filter((p) => p.sampleId && p.name.startsWith('take')).length);
+const [pj] = await Promise.all([page.waitForEvent('download'), page.tap('.export-win button:has-text("SAVE PROJECT")')]);
+const proj = JSON.parse(fs.readFileSync(await pj.path(), 'utf8'));
+R.project = { format: proj.format, style: proj.session.style, hasSeq: !!proj.session.seq };
+await page.tap('.export-win .win-title .bevel');
+await page.evaluate(() => window.__slug.session.setPlaying(true));
 // SHELL SHOCK (band still playing)
 await page.click('.dock .bevel:nth-child(5)'); await page.waitForTimeout(200);
 await page.evaluate(() => window.__slug.app.audio.master.xy.ready);

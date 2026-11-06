@@ -2,7 +2,25 @@
 
 All notable changes to Slug OS, newest first. Written for players, not programmers.
 
-## Unreleased (branch claude/global-fixes)
+## Unreleased (branch claude/hiphop-export)
+
+### Added
+- **Five hip hop, jazz, funk and soul styles**: BOOM BAP, DUSTY, STRUT,
+  GOLDEN, KNOCK (eleven in all). Styles are named for grooves, not artists.
+- **Beats that follow the style**: NEW BEAT writes boom bap, funk, soul, jazz,
+  knock (half-time, hat rolls) or sparse drums to match; a generated beat
+  changes with the style, an edited one stays.
+- **CHOP** playing mode for HARMONY: chopped record-style stabs.
+- **MORPH**: two more named knobs per engine (◐ on the BAND page).
+- **EXPORT** (tap the snail logo): LOOP (exact bars) or LIVE recording, stereo
+  mix or multitrack stems (zip), 48k / 44.1k / 22k / 11k, 16 or 24 bit;
+  recording to a sampler pad; project files (save / open).
+
+### Changed
+- Presets "Dre Glide" and "Motown Thump" renamed "Sunset Glide" and
+  "Soul Thump" (no artist names).
+
+## Earlier (branch claude/global-fixes)
 
 ### Changed
 - **Changing the key transposes the whole project** (chord playing, chord

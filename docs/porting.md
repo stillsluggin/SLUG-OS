@@ -46,6 +46,9 @@ what fits and what doesn't.
 | Sampler pitch / stretch (WSOLA, beats) | ❌ | Offline rendering of whole samples; browser-only with the sampler |
 | SHELL SHOCK (XY effects) | ⚠️ | No touch screen on the FM-1: map X/Y to two encoders. Cheap: filter, isolator, delay, stutter, crusher, lo-fi, saturation, ring mod, gate, chorus. Need RAM buffers: beat repeat, reverse repeat, tape stop, pitch dive (keep to ~0.5 s mono). Reverb wash needs a light algorithmic reverb instead of convolution |
 | Metronome | ✅ | Trivial |
+| Hip hop styles + style drums + CHOP | ✅ | Tables and patterns only |
+| MORPH knobs | ⚠️ | Map to the extra encoders; keep it to drive + tone + tremolo per part (no stereo width on a mono-ish budget) |
+| EXPORT (WAV, stems, zip) | ❌ | Browser-only. On the FM-1, record its audio output into your sampler (or USB audio) |
 | Chord History, CAPTURE, parts, OVERDUB/REPLACE | ✅ | Small fixed arrays (e.g. 64 history chords, 256 logged events, 64 notes per part). BACK/FORWARD on OCT- / OCT+, CAPTURE on SAVE |
 | Web MIDI / computer keyboard | n/a | The hardware keys and TRS/USB MIDI replace them |
 

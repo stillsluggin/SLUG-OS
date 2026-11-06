@@ -514,3 +514,28 @@ test('MORPH: two named extra knobs per engine, A/B switch to them', () => {
   assert.equal(s.state.players[0].slot.knobs[2], 0.9);
   assert.notEqual(s.state.players[0].slot.knobs[0], 0.9, 'main knob untouched');
 });
+
+import { resample, wavBytes } from '../src/storage/wav.js';
+import { zip, crc32 } from '../src/storage/zip.js';
+
+test('export files: WAV 16/24-bit, resampling keeps pitch, zip structure', () => {
+  const sr = 48000;
+  const x = new Float32Array(sr / 2);
+  for (let i = 0; i < x.length; i++) x[i] = 0.5 * Math.sin((2 * Math.PI * 440 * i) / sr);
+  const y = resample(x, sr, 22050);
+  assert.equal(y.length, Math.floor(x.length * 22050 / 48000));
+  const hz = zeroCrossRate(y, 22050);
+  assert.ok(Math.abs(hz - 440) < 3, `${hz} Hz`);
+  const w16 = wavBytes([y, y], 22050, 16);
+  const w24 = wavBytes([y, y], 22050, 24);
+  const dv = (b) => new DataView(b.buffer);
+  assert.equal(String.fromCharCode(...w16.slice(0, 4)), 'RIFF');
+  assert.equal(dv(w16).getUint32(24, true), 22050);
+  assert.equal(dv(w24).getUint16(34, true), 24);
+  assert.equal(w24.length - 44, y.length * 2 * 3);
+  assert.equal(crc32(new TextEncoder().encode('123456789')), 0xcbf43926, 'standard CRC32 check value');
+  const z = zip([{ name: 'a/01-mix.wav', data: w16 }, { name: 'a/02-bass.wav', data: w16 }]);
+  assert.equal(dv(z).getUint32(0, true), 0x04034b50);
+  assert.equal(dv(z).getUint32(z.length - 22, true), 0x06054b50);
+  assert.equal(dv(z).getUint16(z.length - 22 + 10, true), 2, 'two files');
+});

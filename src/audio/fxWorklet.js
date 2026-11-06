@@ -6,6 +6,7 @@
 //   slug-lofi     sample-rate reduction (sample & hold) + bit reduction + hiss
 //   slug-pitch    pitch shifter (two crossfading read heads) for PITCH DIVE
 //   slug-reverse  grabs the last beat (or less) and plays it backwards, looped
+//   slug-tap      records a track between two exact frames (EXPORT)
 
 const CODE = `
 class Lofi extends AudioWorkletProcessor {
@@ -102,6 +103,45 @@ class Reverse extends AudioWorkletProcessor {
   }
 }
 registerProcessor('slug-reverse', Reverse);
+
+// Recorder tap: captures its input between two exact sample frames and sends
+// the audio to the main thread in chunks (used by EXPORT; one per track).
+class Tap extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this.start = -1; this.stop = -1; this.l = []; this.r = []; this.n = 0;
+    this.port.onmessage = (e) => {
+      if (e.data.cmd === 'start') { this.start = e.data.at; this.stop = -1; this.l = []; this.r = []; this.n = 0; }
+      if (e.data.cmd === 'stop') this.stop = e.data.at;
+    };
+  }
+  flush(done) {
+    const L = new Float32Array(this.n), R = new Float32Array(this.n);
+    let o = 0;
+    for (let i = 0; i < this.l.length; i++) { L.set(this.l[i], o); R.set(this.r[i], o); o += this.l[i].length; }
+    this.port.postMessage({ l: L, r: R, done }, [L.buffer, R.buffer]);
+    this.l = []; this.r = []; this.n = 0;
+  }
+  process(inputs) {
+    if (this.start < 0) return true;
+    const len = 128, f0 = currentFrame, f1 = currentFrame + len;
+    if (f1 <= this.start) return true;
+    const a = Math.max(0, this.start - f0);
+    let b = len, done = false;
+    if (this.stop >= 0 && this.stop < f1) { b = Math.max(a, this.stop - f0); done = true; }
+    const inp = inputs[0] || [];
+    const L = inp[0], R = inp[1] || inp[0];
+    if (b > a) {
+      this.l.push(L ? L.slice(a, b) : new Float32Array(b - a));
+      this.r.push(R ? R.slice(a, b) : new Float32Array(b - a));
+      this.n += b - a;
+    }
+    if (done) { this.flush(true); this.start = -1; }
+    else if (this.n >= 16384) this.flush(false);
+    return true;
+  }
+}
+registerProcessor('slug-tap', Tap);
 `;
 
 let loading = null;

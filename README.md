@@ -74,12 +74,19 @@ clean.
   with it. Major ↔ minor moves every chord to the same step of the new scale.
 - **BPM** (top bar): opens a small TEMPO window. Tap − / + (hold to keep
   going), or tap the number and type a tempo (40–220).
-- **Styles** (STYLE knob): **BREATHE** (laid back, minor 9ths, ii–V loops),
-  **FOCUS** (floating maj7#11, chromatic slides), **STOMP** (I–vi–IV–V,
-  backbeat), **CRUISE** (G-funk sway, 9ths, gliding bass), **BLOOM** (gospel
-  neo-soul, 11ths/13ths, passing chords), **DRIFT** (calm, open sus chords,
-  long pads). Each style changes its comping, strumming and bass from bar to
-  bar over a 4-bar phrase.
+- **Styles** (STYLE knob), eleven grooves:
+  **BREATHE** (laid back, minor 9ths, ii–V loops), **FOCUS** (floating
+  maj7#11, chromatic slides), **STOMP** (I–vi–IV–V, backbeat), **CRUISE**
+  (G-funk sway, 9ths, gliding bass), **BLOOM** (gospel neo-soul), **DRIFT**
+  (calm, open, long pads), **BOOM BAP** (dusty minor loops, chopped stabs),
+  **DUSTY** (jazz hip hop: ii–V–I, 11ths, tritone subs, swung), **STRUT**
+  (funk: 16th chops, octave bass), **GOLDEN** (sweet soul), **KNOCK** (hard
+  hip hop: dark triads, half-time drums, sliding low bass). Each style changes
+  its comping and bass bar to bar, and **NEW BEAT** on DRUMS writes a beat in
+  the style (a generated beat follows when you change style; once you edit it,
+  it stays yours).
+- **CHOP** (HARMONY's PLAY mode): short chopped stabs like hits cut from a
+  record, flipping the voicing from hit to hit.
 
 ### Chord History
 
@@ -127,7 +134,7 @@ Tap a snail to focus it, then change its ENGINE, preset and its two knobs (A, B)
 **BASS LATCH**: one press switches the bass between FOLLOW and FREE. Follow
 modes: ROOT, SLASH, ROOT-FIFTH, OCTAVE, WALKING, PEDAL.
 
-### Synth engines (two knobs each)
+### Synth engines (two knobs each, plus MORPH)
 
 | Engine | How it makes sound | Knobs |
 | --- | --- | --- |
@@ -138,6 +145,11 @@ modes: ROOT, SLASH, ROOT-FIFTH, OCTAVE, WALKING, PEDAL.
 | SHINE | digital wavetables, unison, 8-BIT chip presets | SPARKLE, AIR |
 | TRIP | 3-operator feedback FM with drifting ratios | WEIRD, DRIFT |
 | SIREN | pitch-swept oscillators + noise | RISE, SPEED |
+
+**MORPH** (◐ next to the engine name on BAND): knobs A and B switch to two
+more knobs that reshape the sound: KEYS **DUST / HALO**, ANALOG **GRIT / FAT**,
+PAD **AIRY / SWELL**, PLUCK **BODY / SNAP**, SHINE **MELT / GLINT**, TRIP
+**SPORE / PULSE**, SIREN **HOWL / STATIC**. Tap ◐ MORPH again for the main pair.
 
 ### Next Chord, Your Way
 
@@ -150,6 +162,20 @@ key; only SURPRISE borrows. Tune it in [`src/core/nextChord.js`](src/core/nextCh
 TEMPO, SWING, HUMAN (humanise), STYLE, A and B (focused player's engine
 knobs), LEVEL. Buttons: BASS LATCH, KEY (then press a key; the tonic again
 flips major/minor), REC (write chords into the sequencer), PLAYER (next focus).
+
+## EXPORT (tap the snail logo)
+
+- **RECORD**: **LOOP** restarts the band from bar 1 and records exactly 1, 2,
+  4, 8 or 16 bars (plus a 0–4 s **TAIL** for echoes); **LIVE** records until you
+  tap STOP (play, jam, ride Shell Shock).
+- **FORMAT**: **STEREO MIX** (one WAV) or **MULTITRACK** (a zip: the mix plus
+  one WAV per part that played: harmony, melody, bass, soloist, drums,
+  sampler, loops, all the same length so they line up in your DAW). Stems are
+  dry of the shared room/echo and Shell Shock; those are on the mix.
+- **RATE** 48k, 44.1k, 22k or 11k (the low ones for crunch) and **BITS** 16/24.
+- **→ SAMPLER PAD** puts the recording on the first empty pad (resampling).
+- **PROJECT FILE**: save/open your settings, chords, parts, beats and combos
+  as a `.slug.json` file. Your sounds stay on the device.
 
 ## Your sounds: public vs private
 

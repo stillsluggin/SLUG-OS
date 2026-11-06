@@ -16,6 +16,7 @@ import { createSiren } from './engines/siren.js';
 import { createDrumKit } from './drumkit.js';
 import { createSamplePlayer } from './samplePlayer.js';
 import { createMorph, MORPH_MAP } from './morph.js';
+import { createRecorder } from './recorder.js';
 import { createRenderer } from './sampleRender.js';
 
 const MONO = new Set(['bass', 'melody', 'soloist']);
@@ -149,12 +150,14 @@ export function createOutput(ac) {
   let stepN = 0;
   let nextTime = 0;
   let metro = false;
+  let barOneTime = 0; // when step 0 (bar 1) plays after PLAY
   function runClock(on, reset = false) {
     if (!on) { clearInterval(timer); timer = null; return; }
     if (reset || !timer) {
       clearInterval(timer);
       stepN = 0;
       nextTime = ac.currentTime + 0.06;
+      barOneTime = nextTime;
       tick();
       timer = setInterval(tick, 25);
     }
@@ -251,6 +254,14 @@ export function createOutput(ac) {
       if (!playing) startLoop(nl, ac.currentTime);
       return true;
     },
+    recorder: createRecorder(ac),
+    /** Points EXPORT can record: the final mix and each part (stems are before the shared room/echo). */
+    taps: () => ({
+      mix: master.outNode,
+      harmony: buses.harmony.out, melody: buses.melody.out, bass: buses.bass.out, soloist: buses.soloist.out,
+      drums: buses.drummer.out, sampler: sampler.bus, loops: loopBus,
+    }),
+    get barOneTime() { return barOneTime; },
     loopState: (id) => (loops.has(id) ? (loops.get(id).pending === 'start' ? 'queued' : loops.get(id).pending === 'stop' ? 'stopping' : 'on') : 'off'),
     engineName: (id) => ENGINES[id]?.name,
   };

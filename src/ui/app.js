@@ -20,6 +20,8 @@ import { seqPage } from './pageSeq.js';
 import { drumsPage } from './pageDrums.js';
 import { samplerPage } from './pageSampler.js';
 import { fxPage } from './pageFx.js';
+import { exportWindow } from './exportWin.js';
+import { assignSample } from '../core/sampler.js';
 import { DEFAULT_COMBOS } from '../core/xy.js';
 
 // ---------------------------------------------------------------- session
@@ -91,11 +93,14 @@ bpmInput.addEventListener('change', commitBpm);
 bpmInput.addEventListener('keydown', (ev) => { ev.stopPropagation(); if (ev.key === 'Enter') { commitBpm(); bpmInput.blur(); } });
 document.body.append(bpmPop);
 tap(bpmPill, () => { bpmInput.value = st.tempo; bpmPop.classList.add('open'); });
+const logo = h('span.logo', { title: 'Slug menu: EXPORT, projects' }, spriteImg('snail', 1), 'SLUG OS');
+tap(logo, () => exportWin.open());
 const menubar = h('div.menubar', {},
-  h('span.logo', {}, spriteImg('snail', 1), 'SLUG OS'), keyPill, bpmPill,
+  logo, keyPill, bpmPill,
   h('span.trail', {}, trailFill, trailSnail), recPill, clickBtn, playBtn);
 
 const pages = { band: bandPage(app), seq: seqPage(app), drums: drumsPage(app), sampler: samplerPage(app), fx: fxPage(app) };
+const exportWin = exportWindow(app);
 const pagesEl = h('div.pages', {}, ...Object.values(pages).map((p) => p.el));
 const kb = keybed(session);
 const keyzone = h('div.keyzone', {}, kb.el);
@@ -106,6 +111,7 @@ const dock = h('div.dock', {}, ...[['band', 'BAND', 'iconBand'], ['seq', 'SEQ', 
   return b;
 }));
 root.append(menubar, pagesEl, keyzone, dock);
+document.body.append(exportWin.el);
 
 let page = 'band';
 function setPage(id) {
@@ -275,6 +281,37 @@ app.stopMic = async (r) => {
   if (!buffer) return null;
   const sampleId = await app.library.saveBuffer(`mic-${new Date().toISOString().slice(0, 19)}.wav`, encodeWav(buffer), 'sampler', buffer);
   return { sampleId, name: 'mic take', duration: buffer.duration, buffer };
+};
+
+// ---------------------------------------------------------------- export & projects
+app.ac = () => getContext();
+app.setRecIndicator = (on) => logo.classList.toggle('recording', on);
+
+/** Put a recording on the first empty sampler pad (resampling the app's own output). */
+app.recordingToPad = async (buffer, name) => {
+  const i = app.pads.findIndex((p) => !p.sampleId);
+  if (i < 0) return null;
+  const id = await app.library.saveBuffer(`${name}.wav`, encodeWav(buffer), 'sampler', buffer);
+  app.pads[i] = assignSample(app.pads[i], { sampleId: id, name: `take ${name.slice(-4)}`, duration: buffer.duration });
+  app.savePads();
+  return i;
+};
+
+/** Everything except audio: settings, chords, parts, beats, Shell Shock, pad settings. */
+app.projectFile = () => ({
+  format: 'slug-os-project', v: 1, saved: new Date().toISOString(),
+  session: session.serialize(),
+  xy: { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos },
+  pads: app.pads, kitId: app.kitId,
+});
+app.openProject = (p) => {
+  if (!p || p.format !== 'slug-os-project') throw new Error('not a project');
+  session.load(p.session);
+  if (p.xy) { Object.assign(app.xy, p.xy, { ax: 0, ay: 0 }); app.saveXY(); pages.fx.apply(); }
+  // Pads point at sounds stored on this device; on another device they stay empty.
+  if (Array.isArray(p.pads)) { p.pads.forEach((pd, i) => { if (app.pads[i]) app.pads[i] = { ...app.pads[i], ...pd }; }); app.savePads(); }
+  if (p.kitId) app.selectKit(p.kitId);
+  renderAll();
 };
 
 app.saveXY = () => db.setKV('xy', { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos });
