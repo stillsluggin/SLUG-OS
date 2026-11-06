@@ -63,6 +63,17 @@ steps forward, and tapping a chord in the trail plays it. Next Chord works from
 whichever chord you go back to. Going back never deletes anything: a new chord
 is added to the end. Keys: `[` back, `]` forward.
 
+### CAPTURE (and parts)
+
+Slug OS is always quietly listening. Play some chords, and notes on MELODY,
+BASS or SOLOIST with the strum plate, then tap **CAPTURE** (BAND page, or
+Parts on the SEQ page). It drops the chords into the chord sequencer, snapped
+to a 1-bar, 2-beat or 1-beat grid, and your notes into that player's
+**part**, snapped to 16ths. If you played more than 16 steps, it keeps the
+newest part. **UNDO** takes it back. A player with a part plays your notes
+instead of improvising; **CLEAR** on the SEQ page removes a part. Keys: `/`
+capture, `Backspace` undo.
+
 ### The Slug Band
 
 HARMONY (chords: COMP, SUSTAIN, STRUM, ARP), MELODY (short motifs with call

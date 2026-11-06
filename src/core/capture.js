@@ -27,12 +27,25 @@ export function captureChords(events) {
   const evs = [];
   for (const e of events) if (!evs.length || evs[evs.length - 1].name !== e.name) evs.push(e);
   if (!evs.length) return null;
-  const t0 = evs[0].beat;
+  // For each grid, chords held less than half a step are passing touches and
+  // are skipped (the last chord always counts). Use the biggest grid where
+  // every remaining chord lands on its own step.
+  const held = (list, i) => (i + 1 < list.length ? list[i + 1].beat - list[i].beat : Infinity);
   let grid = 1;
+  let use = evs;
   for (const g of [4, 2, 1]) {
-    const steps = evs.map((e) => Math.round((e.beat - t0) / g));
-    if (new Set(steps).size === steps.length) { grid = g; break; }
+    const keep = evs.filter((e, i) => held(evs, i) >= g / 2);
+    const st = keep.map((e) => Math.round((e.beat - keep[0].beat) / g));
+    if (new Set(st).size === st.length) { grid = g; use = keep; break; }
+    if (g === 1) { // very fast changes: the later chord wins each step
+      const byStep = new Map();
+      keep.forEach((e, i) => byStep.set(st[i], e));
+      use = [...byStep.values()];
+    }
   }
+  evs.length = 0;
+  evs.push(...use);
+  const t0 = evs[0].beat;
   let steps = evs.map((e) => Math.round((e.beat - t0) / grid));
   // Most recent part that fits in 16 steps.
   const last = steps[steps.length - 1];

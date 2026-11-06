@@ -48,6 +48,11 @@ await page.tap('.hist .bevel:first-child'); await page.waitForTimeout(100);
 R.afterBack = await page.textContent('.now-name');
 await page.tap('.hchip >> nth=0'); await page.waitForTimeout(100);
 R.afterChip = await page.textContent('.now-name');
+// capture
+await page.tap('.bevel.cap');
+R.captured = await page.evaluate(() => window.__slug.session.state.seq.steps.filter(Boolean).map((c) => window.__slug.session.chordName(c)));
+await page.tap('text=UNDO'); await page.waitForTimeout(80);
+R.afterUndo = await page.evaluate(() => window.__slug.session.state.seq.steps.filter(Boolean).length);
 await page.screenshot({ path: outDir + 'band.png' });
 
 // all players follow + band plays

@@ -79,11 +79,15 @@ export function bandPage({ session }) {
     hold(b, () => session.buttonDown(id), () => session.buttonUp(id));
     return b;
   };
-  const latchBtn = btn('latch', 'BASS LATCH');
+  const latchBtn = btn('latch', 'LATCH');
+  latchBtn.title = 'Bass Latch';
+  const capBtn = button('CAPTURE', () => session.capture(), 'cap');
+  capBtn.title = 'Capture what you just played into the sequencer ( / )';
+  const undoBtn = button('UNDO', () => session.undo());
   const keyBtn = btn('key', 'KEY');
   const recBtn = btn('rec', 'REC');
   const playerBtn = btn('player', 'PLAYER ▸');
-  const panel = win('Controls', h('div.panel', {}, h('div.knobs', {}, knobs.map((k) => k.el)), h('div.buttons', {}, latchBtn, keyBtn, recBtn, playerBtn)), { cls: 'span' });
+  const panel = win('Controls', h('div.panel', {}, h('div.knobs', {}, knobs.map((k) => k.el)), h('div.buttons.six', {}, latchBtn, keyBtn, recBtn, capBtn, undoBtn, playerBtn)), { cls: 'span' });
 
   const el = h('div.page.cols', {}, nowWin, bandWin, panel);
 
@@ -137,6 +141,7 @@ export function bandPage({ session }) {
     feelBtn.textContent = f.id === 'harmony' ? `PLAY: ${f.harmonyMode}` : f.id === 'bass' ? `FOLLOW: ${f.bassMode}` : '';
     knobs.forEach((k) => k.update());
     latchBtn.classList.toggle('on', st.players[2].mode === 'FOLLOW');
+    undoBtn.disabled = !session.canUndo;
     keyBtn.classList.toggle('on', st.keySelect);
     recBtn.classList.toggle('hot', st.seq.rec);
   }

@@ -5,6 +5,11 @@ All notable changes to Slug OS, newest first. Written for players, not programme
 ## Unreleased (branch claude/history-capture)
 
 ### Added
+- **CAPTURE**: Slug OS always listens. Tap CAPTURE and the chords you just
+  played land in the chord sequencer (timing snapped to the grid and BPM), and
+  notes you played on MELODY, BASS or SOLOIST land in that player's new
+  **part**. Keeps the newest part if you played a lot. UNDO takes it back.
+  New Parts window on the SEQ page shows each part, with CLEAR.
 - **Chord History**: Slug OS remembers every chord you play, with its bends and
   exact voicing. ◂ / ▸ next to the chord name step back and forward and play
   the chord again; the little slime trail shows your last five chords, tap one

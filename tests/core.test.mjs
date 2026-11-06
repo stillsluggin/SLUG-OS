@@ -241,3 +241,65 @@ test('chord history: back, forward, replay exact voicing, bends remembered', () 
   const t = createTrail();
   assert.equal(t.back(), null);
 });
+
+import { captureChords, captureNotes, mergePart } from '../src/core/capture.js';
+
+test('capture: chords snap to a grid, newest part that fits', () => {
+  const ch = (name) => ({ name, chord: makeChord(0, 'maj') });
+  // one chord per bar, slightly sloppy timing
+  let r = captureChords([0, 4.1, 7.9, 12.05].map((b, i) => ({ beat: b, ...ch(`c${i}`) })));
+  assert.equal(r.stepBeats, 4); assert.equal(r.length, 4);
+  assert.deepEqual(r.steps.slice(0, 4).map((c) => !!c), [true, true, true, true]);
+  // chords every 2 beats need a 2-beat grid
+  r = captureChords([0, 2, 4, 6].map((b, i) => ({ beat: b, ...ch(`c${i}`) })));
+  assert.equal(r.stepBeats, 2); assert.equal(r.length, 4);
+  // 20 bars of chords: keep the newest 16 steps
+  r = captureChords(Array.from({ length: 20 }, (_, i) => ({ beat: i * 4, ...ch(`c${i}`) })));
+  assert.equal(r.length, 16); assert.equal(r.startBeat, 16);
+  // repeated chord merges
+  r = captureChords([{ beat: 0, ...ch('a') }, { beat: 4, ...ch('a') }, { beat: 8, ...ch('b') }]);
+  assert.equal(r.steps.filter(Boolean).length, 2);
+  // a chord touched for a moment (e.g. two keys at once) doesn't wreck the grid
+  r = captureChords([{ beat: 0, ...ch('a') }, { beat: 0.05, ...ch('b') }, { beat: 4, ...ch('c') }, { beat: 8, ...ch('d') }, { beat: 12, ...ch('e') }]);
+  assert.equal(r.stepBeats, 4); assert.equal(r.length, 4);
+  assert.deepEqual(r.steps.slice(0, 4).map((c) => !!c), [true, true, true, true]);
+  // notes snap to 16ths, inside the loop
+  const parts = captureNotes([{ player: 'bass', beat: 0.02, midi: 40, vel: 0.8, dur: 0.9 }, { player: 'melody', beat: 2.49, midi: 72, vel: 0.7, dur: 0.3 }, { player: 'bass', beat: 20, midi: 41, vel: 1, dur: 1 }], 16, 0);
+  assert.deepEqual(parts.bass.map((n) => n.pos), [0]);
+  assert.deepEqual(parts.melody.map((n) => [n.pos, n.dur]), [[2.5, 0.25]]);
+  assert.equal(mergePart([{ pos: 0, midi: 40 }], [{ pos: 1, midi: 41 }], 'OVERDUB').length, 2);
+  assert.equal(mergePart([{ pos: 0, midi: 40 }], [{ pos: 1, midi: 41 }], 'REPLACE').length, 1);
+});
+
+test('session capture: stopped jam -> sequencer + parts, parts play back, undo', () => {
+  const out = fakeOut();
+  let now = 0;
+  out.now = () => now;
+  const s = createSession(out, { rng });
+  const beat = 60 / s.state.tempo;
+  const k = (deg) => KEYS.find((x) => x.section === 'chord' && x.degree === deg).index;
+  const plate = KEYS.filter((x) => x.section === 'plate');
+  // Four chords, one bar each, plus some bass notes on the strum plate
+  s.focus(2); s.toggleBassLatch(); // bass FREE
+  [0, 3, 4, 0].forEach((d, i) => {
+    now = (i * 4 + 0.05) * beat; s.keyDown(k(d)); s.keyUp(k(d));
+    now = (i * 4 + 0.1) * beat; s.keyDown(plate[i].index);
+    now = (i * 4 + 1) * beat; s.keyUp(plate[i].index);
+  });
+  // Dm Gm Am Dm: the repeated Dm is a new step (not consecutive)
+  assert.ok(s.capture());
+  assert.equal(s.state.seq.length, 4);
+  assert.equal(s.state.seq.stepBeats, 4);
+  assert.deepEqual(s.state.seq.steps.slice(0, 4).map((c) => s.chordName(c)), ['Dm', 'Gm', 'Am', 'Dm']);
+  assert.equal(s.state.parts.bass.length, 4);
+  assert.deepEqual(s.state.parts.bass.map((n) => n.pos), [0, 4, 8, 12]);
+  // The bass part plays back when the band runs
+  s.setPlaying(true);
+  out.log.length = 0;
+  for (let n = 0; n < 64; n++) s.step(n, n * 0.17);
+  assert.equal(out.log.filter((e) => e[0] === 'play' && e[1] === 'bass').length, 4);
+  // Undo puts it all back
+  assert.ok(s.undo());
+  assert.equal(s.state.parts.bass.length, 0);
+  assert.equal(s.state.seq.steps.filter(Boolean).length, 0);
+});

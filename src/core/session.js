@@ -26,6 +26,7 @@ import { drumEvents, generateBoomBap, LANES } from './drums.js';
 import { createSeq, seqPosition, seqChordAt, hasChords, autoFill } from './chordSeq.js';
 import { KEYS, KNOBS, BEND_INFO } from './controls.js';
 import { createTrail } from './trail.js';
+import { PART_PLAYERS, REC_MODES, captureChords, captureNotes, mergePart, notesIn, emptyParts, cloneParts } from './capture.js';
 
 const DEFAULT_PLAYERS = [
   { id: 'harmony', mode: 'FOLLOW', slot: engineSlot('keys', 0), level: 0.8, harmonyMode: 'COMP' },
@@ -63,6 +64,10 @@ export function createSession(out, { rng = Math.random } = {}) {
     pressed: new Set(),
     buttonsHeld: new Set(),
     toast: null,
+    parts: emptyParts(), // recorded MELODY / BASS / SOLOIST parts
+    partBeats: 16, // part loop length when the chord sequencer is empty
+    recMode: 'OVERDUB',
+    undoLabel: null,
   };
   const chordStack = []; // held chord sources
   const plateStack = []; // held plate keys {index, midi, player}
@@ -71,6 +76,30 @@ export function createSession(out, { rng = Math.random } = {}) {
   let keyChosenWhileHeld = false;
   const mem = { bass: {}, melody: {}, soloist: {} };
   let trail = createTrail(); // Chord History
+
+  // ---- Always-on listening for CAPTURE. Events are kept in "segments": a new
+  // segment starts whenever the band starts or stops, because the beat count
+  // restarts there.
+  const listen = [{ chords: [], notes: [] }];
+  const seg = () => listen[listen.length - 1];
+  const newSegment = () => { listen.push({ chords: [], notes: [] }); if (listen.length > 3) listen.shift(); };
+  let clockRef = null; // { step, time } of the last clock step while playing
+  /** Where we are now, in beats (band clock while playing, the tempo while stopped). */
+  function beatNow() {
+    const t = out.now();
+    if (state.playing && clockRef) return (clockRef.step + (t - clockRef.time) / stepDur()) / 4;
+    return t / (60 / state.tempo);
+  }
+  const heldNotes = new Map(); // plate key -> logged note (to fill in its length)
+  const undoStack = [];
+  const snapshot = (label) => ({ label, seq: JSON.parse(JSON.stringify(state.seq)), parts: cloneParts(state.parts), partBeats: state.partBeats });
+  function pushUndo(label) {
+    undoStack.push(snapshot(label));
+    if (undoStack.length > 20) undoStack.shift();
+    state.undoLabel = label;
+  }
+  const hasPart = (id) => PART_PLAYERS.includes(id) && state.parts[id].length > 0;
+  const partLoopBeats = () => (state.seq.on && hasChords(state.seq) ? state.seq.length * state.seq.stepBeats : state.partBeats);
   const listeners = new Set();
 
   const emit = (what = 'state', data) => listeners.forEach((fn) => fn(what, state, data));
@@ -135,7 +164,7 @@ export function createSession(out, { rng = Math.random } = {}) {
         out.cutPlayer('harmony', t);
         newV.forEach((n, i) => out.play('harmony', n, fresh ? vel : vel * 0.75, t + i * 0.005, stepDur() * 6));
       }
-      if (bass && (fresh || newBass !== oldBass)) {
+      if (bass && !hasPart('bass') && (fresh || newBass !== oldBass)) {
         out.cutPlayer('bass', t);
         out.play('bass', newBass, vel, t, stepDur() * 3);
       }
@@ -178,12 +207,20 @@ export function createSession(out, { rng = Math.random } = {}) {
   /** Add the chord that's sounding now (with its bends and exact voicing) to the history. */
   function remember() {
     if (!state.chord) return;
+    logChord();
     trail.push({
       chord: { ...state.chord, ext: [...state.chord.ext] },
       voicing: [...state.voicing],
       name: chordName(state.chord, state.key),
       roman: romanOf(state.chord, state.key),
     });
+  }
+
+  /** Note the chord for CAPTURE (with its time in beats). */
+  function logChord() {
+    const c = seg().chords;
+    c.push({ beat: beatNow(), chord: { ...state.chord, ext: [...state.chord.ext] }, name: chordName(state.chord, state.key) });
+    if (c.length > 400) c.shift();
   }
 
   /** Play a chord from the history again, exactly as it was. */
@@ -193,6 +230,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     held = 0;
     setBase({ ...entry.chord, ext: [...entry.chord.ext] });
     refresh({ fresh: true, vel: 0.8, voicing: entry.voicing });
+    if (state.chord) logChord();
     toast(`◂ ${entry.name}`);
     return true;
   }
@@ -246,16 +284,34 @@ export function createSession(out, { rng = Math.random } = {}) {
     plateStack.push({ index, midi, player: p.id });
     out.noteOn(p.id, midi, vel, { time: out.now(), glide: prev != null, from: prev });
     hits([p.id], out.now());
+    logNote(index, p.id, midi, vel);
+  }
+
+  /** Note a played note for CAPTURE. Mono players end the previous note here. */
+  function logNote(index, id, midi, vel) {
+    if (!PART_PLAYERS.includes(id)) return;
+    const b = beatNow();
+    if (MONO.has(id)) for (const [k, n] of heldNotes) if (n.player === id) { n.dur = b - n.beat; heldNotes.delete(k); }
+    const note = { player: id, midi, vel, beat: b, dur: null };
+    seg().notes.push(note);
+    if (seg().notes.length > 800) seg().notes.shift();
+    heldNotes.set(index, note);
+  }
+  function endNote(index) {
+    const n = heldNotes.get(index);
+    if (n) { n.dur = beatNow() - n.beat; heldNotes.delete(index); }
   }
 
   function plateUp(index) {
     const i = plateStack.findIndex((e) => e.index === index);
     if (i < 0) return;
     const [gone] = plateStack.splice(i, 1);
+    endNote(index);
     const mine = plateStack.filter((e) => e.player === gone.player);
     if (MONO.has(gone.player) && mine.length) {
       const back = mine[mine.length - 1];
       out.noteOn(gone.player, back.midi, 0.6, { time: out.now(), glide: true, from: gone.midi });
+      logNote(back.index, gone.player, back.midi, 0.6);
     } else out.noteOff(gone.player, gone.midi, out.now());
   }
 
@@ -362,6 +418,8 @@ export function createSession(out, { rng = Math.random } = {}) {
     out.releasePlayer('harmony', t);
     out.releasePlayer('bass', t);
     state.playing = on;
+    newSegment();
+    clockRef = null;
     if (on) {
       state.step = 0;
       mem.melody = {}; mem.soloist = {}; mem.bass = {};
@@ -534,6 +592,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     // Metronome: a click on every beat, accented on beat 1.
     if (state.metronome && n % 4 === 0) out.click(n % 16 === 0, time);
     if (!state.playing) { emit('step'); return; }
+    clockRef = { step: n, time };
     const s = n % 16;
     const bar = Math.floor(n / 16);
     if (s === 0) out.bar(bar, time);
@@ -563,9 +622,11 @@ export function createSession(out, { rng = Math.random } = {}) {
     const played = [];
     const evs = [];
     if (follows('harmony')) evs.push(...harmonyEvents(s, ctx));
-    if (follows('bass')) evs.push(...bassEvents(s, ctx, mem.bass));
-    if (follows('melody')) evs.push(...melodyEvents(s, ctx, mem.melody));
-    if (follows('soloist')) evs.push(...soloEvents(s, ctx, mem.soloist));
+    // A player with a recorded part plays your part instead of improvising.
+    if (follows('bass') && !hasPart('bass')) evs.push(...bassEvents(s, ctx, mem.bass));
+    if (follows('melody') && !hasPart('melody')) evs.push(...melodyEvents(s, ctx, mem.melody));
+    if (follows('soloist') && !hasPart('soloist')) evs.push(...soloEvents(s, ctx, mem.soloist));
+    partEvents(n, time, sd, played);
     if (follows('drummer')) evs.push(...drumEvents(s, ctx));
     for (const ev of evs) {
       const t = time + swingT + Math.max(0, (ev.late || 0) + humanT());
@@ -576,6 +637,71 @@ export function createSession(out, { rng = Math.random } = {}) {
     }
     if (played.length) hits(played, time);
     emit('step');
+  }
+
+  /** Play the recorded parts' notes that fall in this 16th. */
+  function partEvents(n, time, sd, played) {
+    const loop = partLoopBeats();
+    const b0 = (n / 4) % loop;
+    const loopNo = Math.floor(n / 4 / loop);
+    for (const id of PART_PLAYERS) {
+      if (player(id).mode === 'MUTE' || !state.parts[id].length) continue;
+      for (const nt of notesIn(state.parts[id], b0, b0 + 0.25)) {
+        if (nt.loop === loopNo && nt.fresh) continue; // just recorded live in this pass: you already heard it
+        out.play(id, nt.midi, nt.vel, time + (nt.pos - b0) * 4 * sd, nt.dur * 4 * sd * 0.95);
+        if (!played.includes(id)) played.push(id);
+      }
+    }
+  }
+
+  // ------------------------------------------------------------ capture & undo
+
+  /**
+   * CAPTURE: take what you just played (chords + MELODY / BASS / SOLOIST notes),
+   * snap it to the grid and the BPM, and drop it into the chord sequencer and
+   * the players' parts. One UNDO puts everything back.
+   */
+  function capture() {
+    const src = [...listen].reverse().find((g) => g.chords.length || g.notes.length);
+    if (!src) { toast('NOTHING TO CAPTURE YET'); return false; }
+    pushUndo('CAPTURE');
+    const res = captureChords(src.chords);
+    let startBeat = null;
+    if (res) {
+      state.seq = { ...state.seq, steps: res.steps, length: res.length, stepBeats: res.stepBeats, on: true };
+      startBeat = res.startBeat;
+    }
+    const loop = res ? res.loopBeats : state.partBeats;
+    const now = beatNow();
+    const notes = src.notes.map((nt) => ({ ...nt, dur: nt.dur ?? now - nt.beat }));
+    const parts = captureNotes(notes, loop, startBeat);
+    if (!res) state.partBeats = loop;
+    let count = 0;
+    for (const [id, add] of Object.entries(parts)) { state.parts[id] = mergePart(state.parts[id], add, state.recMode); count += add.length; }
+    const chords = res ? res.steps.filter(Boolean).length : 0;
+    toast(`CAPTURED · ${chords} CHORD${chords === 1 ? '' : 'S'}${count ? ` · ${count} NOTES` : ''}`);
+    emit();
+    return true;
+  }
+
+  /** UNDO the last capture or recorded pass. */
+  function undo() {
+    const snap = undoStack.pop();
+    if (!snap) { toast('NOTHING TO UNDO'); return false; }
+    state.seq = { ...snap.seq, rec: state.seq.rec };
+    state.parts = snap.parts;
+    state.partBeats = snap.partBeats;
+    state.undoLabel = undoStack.length ? undoStack[undoStack.length - 1].label : null;
+    toast(`UNDO · ${snap.label}`);
+    emit();
+    return true;
+  }
+
+  function clearPart(id) {
+    if (!state.parts[id]?.length) return;
+    pushUndo(`CLEAR ${PLAYER_NAMES[id]}`);
+    state.parts[id] = [];
+    emit();
   }
 
   // ------------------------------------------------------------ display
@@ -615,6 +741,7 @@ export function createSession(out, { rng = Math.random } = {}) {
       players: state.players.map((p) => ({ id: p.id, mode: p.mode, slot: p.slot, level: p.level, harmonyMode: p.harmonyMode, bassMode: p.bassMode })),
       seq: state.seq, drums: state.drums,
       trail: trail.toJSON(),
+      parts: state.parts, partBeats: state.partBeats, recMode: state.recMode,
     };
   }
 
@@ -629,6 +756,9 @@ export function createSession(out, { rng = Math.random } = {}) {
     });
     if (d.seq) state.seq = { ...createSeq(), ...d.seq, rec: false };
     if (d.trail) trail = createTrail(d.trail);
+    if (d.parts) state.parts = { ...emptyParts(), ...cloneParts(d.parts) };
+    if (d.partBeats) state.partBeats = d.partBeats;
+    if (REC_MODES.includes(d.recMode)) state.recMode = d.recMode;
     if (d.drums?.pattern) state.drums = { ...state.drums, ...d.drums };
     state.players.forEach((p, i) => out.setPlayer(i, p));
     refreshSuggestions();
@@ -644,7 +774,8 @@ export function createSession(out, { rng = Math.random } = {}) {
     focus, cycleMode, cycleEngine, cyclePreset, cycleFeel, toggleBassLatch, setPlaying,
     knob, knobValue, knobLabel, knobText,
     seqSelect, seqSet, seqClear, seqAuto, toggleMetronome,
-    historyBack, historyForward, historyGo,
+    historyBack, historyForward, historyGo, capture, undo, clearPart,
+    partLoopBeats, get canUndo() { return undoStack.length > 0; },
     get trail() { return trail; },
     setPattern, toggleDrumStep, generateDrums,
     step, stepDur,

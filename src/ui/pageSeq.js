@@ -2,6 +2,9 @@
 
 import { h, win, button, tap } from './widgets.js';
 import { SEQ_STEPS, STEP_BEATS } from '../core/chordSeq.js';
+import { PART_PLAYERS } from '../core/capture.js';
+import { PLAYER_NAMES } from '../core/players.js';
+import { spriteImg, PLAYER_TINTS } from './sprites.js';
 
 export function seqPage({ session }) {
   const st = session.state;
@@ -30,9 +33,38 @@ export function seqPage({ session }) {
     h('div.row', { style: 'margin-top:6px' }, eraseBtn, h('span.grow')),
     h('p.help', { text: 'Tap a step, then play a chord to write it (it moves to the next step). Or press REC and play along while the band runs. AUTO writes a loop in the current style using Next Chord.' }),
   ];
-  const el = h('div.page', {}, win('Chord Sequencer', body));
+  // ---- Parts: what's been recorded for MELODY, BASS and SOLOIST
+  const capBtn = button('CAPTURE', () => session.capture(), 'cap');
+  const undoBtn = button('UNDO', () => session.undo());
+  const loopLab = h('span.lab');
+  const lanes = PART_PLAYERS.map((id) => {
+    const cells = Array.from({ length: 16 }, () => h('i'));
+    const count = h('span.pc');
+    const clear = button('CLEAR', () => session.clearPart(id), 'sm');
+    const row = h('div.part', {}, spriteImg('snail', 1, PLAYER_TINTS[id]), h('span.pn', { text: PLAYER_NAMES[id] }), h('span.roll', {}, cells), count, clear);
+    return { id, row, cells, count, clear };
+  });
+  const partsWin = win('Parts', [
+    h('div.row', {}, capBtn, undoBtn, h('span.grow'), loopLab),
+    h('div.parts', { style: 'margin-top:6px' }, lanes.map((l) => l.row)),
+    h('p.help', { text: 'Slug OS is always listening. Play some chords (and notes on MELODY, BASS or SOLOIST), then tap CAPTURE: it drops them into the sequencer and the parts, snapped to the beat. UNDO takes it back. A player with a part plays your notes instead of improvising.' }),
+  ]);
+  const el = h('div.page', {}, win('Chord Sequencer', body), partsWin);
+
+  function updateParts() {
+    const loop = session.partLoopBeats();
+    loopLab.textContent = `LOOP ${loop / 4 >= 1 ? `${loop / 4} BAR${loop / 4 > 1 ? 'S' : ''}` : `${loop} BEATS`}`;
+    undoBtn.disabled = !session.canUndo;
+    for (const l of lanes) {
+      const notes = st.parts[l.id];
+      l.count.textContent = notes.length ? `${notes.length}♪` : '—';
+      l.clear.disabled = !notes.length;
+      l.cells.forEach((c, i) => { c.className = notes.some((n) => Math.floor((n.pos / loop) * 16) === i) ? 'on' : ''; });
+    }
+  }
 
   function update() {
+    updateParts();
     const s = st.seq;
     onBtn.textContent = s.on ? 'SEQ ON' : 'SEQ OFF';
     onBtn.classList.toggle('on', s.on);

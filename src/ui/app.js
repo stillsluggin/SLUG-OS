@@ -323,6 +323,8 @@ window.addEventListener('keydown', (ev) => {
   if (k in BTN_KEYS) { session.buttonDown(BTN_KEYS[k]); ev.preventDefault(); return; }
   if (k === ';') { session.toggleMetronome(); return; }
   if (k === '[') { session.historyBack(); return; }
+  if (k === '/') { session.capture(); ev.preventDefault(); return; }
+  if (k === 'Backspace') { session.undo(); ev.preventDefault(); return; }
   if (k === ']') { session.historyForward(); return; }
   if (page === 'sampler' && pages.sampler.keyDown(k)) { ev.preventDefault(); return; }
   if (page === 'drums' && '123456'.includes(k)) { out.drum(LANES[Number(k) - 1], 0.9, out.now()); return; }
