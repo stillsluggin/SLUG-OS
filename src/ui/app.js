@@ -19,6 +19,8 @@ import { bandPage } from './pageBand.js';
 import { seqPage } from './pageSeq.js';
 import { drumsPage } from './pageDrums.js';
 import { samplerPage } from './pageSampler.js';
+import { fxPage } from './pageFx.js';
+import { DEFAULT_COMBOS } from '../core/xy.js';
 
 // ---------------------------------------------------------------- session
 // The session exists before audio starts (so the screens can draw). Its `out`
@@ -32,6 +34,7 @@ const app = {
   session, out, audio: null, library: null,
   pads: createPads(),
   kitId: 'builtin',
+  xy: { x: 'filter', y: 'delay', hold: false, ax: 0, ay: 0, combos: DEFAULT_COMBOS.map((c) => ({ ...c })) },
   toast,
   now: () => getContext()?.currentTime ?? 0,
 };
@@ -62,12 +65,12 @@ const menubar = h('div.menubar', {},
   h('span.logo', {}, spriteImg('snail', 1), 'SLUG OS'), keyPill, bpmPill,
   h('span.trail', {}, trailFill, trailSnail), clickBtn, playBtn);
 
-const pages = { band: bandPage(app), seq: seqPage(app), drums: drumsPage(app), sampler: samplerPage(app) };
+const pages = { band: bandPage(app), seq: seqPage(app), drums: drumsPage(app), sampler: samplerPage(app), fx: fxPage(app) };
 const pagesEl = h('div.pages', {}, ...Object.values(pages).map((p) => p.el));
 const kb = keybed(session);
 const keyzone = h('div.keyzone', {}, kb.el);
 const dockBtns = {};
-const dock = h('div.dock', {}, ...[['band', 'BAND', 'iconBand'], ['seq', 'SEQ', 'iconSeq'], ['drums', 'DRUMS', 'iconDrums'], ['sampler', 'SAMPLER', 'iconSampler']].map(([id, label, icon]) => {
+const dock = h('div.dock', {}, ...[['band', 'BAND', 'iconBand'], ['seq', 'SEQ', 'iconSeq'], ['drums', 'DRUMS', 'iconDrums'], ['sampler', 'SAMPLER', 'iconSampler'], ['fx', 'XY FX', 'iconFx']].map(([id, label, icon]) => {
   const b = button([spriteImg(icon, 2), label], () => setPage(id));
   dockBtns[id] = b;
   return b;
@@ -239,6 +242,8 @@ app.stopMic = async (r) => {
   return { sampleId, name: 'mic take', duration: buffer.duration, buffer };
 };
 
+app.saveXY = () => db.setKV('xy', { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, combos: app.xy.combos });
+
 let padsTimer;
 app.savePads = () => { clearTimeout(padsTimer); padsTimer = setTimeout(() => db.setKV('pads', app.pads), 300); };
 // Never lose edits when the phone backgrounds the page.
@@ -266,6 +271,7 @@ function boot() {
     real = app.audio.out;
     st.players.forEach((p, i) => real.setPlayer(i, p));
     app.audio.setTempo(st.tempo);
+    pages.fx.apply();
     ac.addEventListener?.('statechange', onStateChange);
     bootSlime.style.width = '75%';
     db.persist();
@@ -273,7 +279,7 @@ function boot() {
     await app.selectKit(app.kitId);
     bootSlime.style.width = '100%';
     setupMidi();
-    window.__slug = { session, app, ac };
+    window.__slug = { session, app, ac, pages };
     if (ac.state === 'running') bootEl.classList.add('hidden');
     else { bootBtn.textContent = 'TAP AGAIN'; booting = null; }
     renderAll();
@@ -358,6 +364,8 @@ async function setupMidi() {
     const pads = await db.getKV('pads');
     if (Array.isArray(pads)) pads.forEach((p, i) => { if (app.pads[i]) app.pads[i] = { ...app.pads[i], ...p }; });
     app.kitId = (await db.getKV('drumKit')) || 'builtin';
+    const xy = await db.getKV('xy');
+    if (xy) Object.assign(app.xy, xy, { ax: 0, ay: 0 });
     await app.library.refresh();
   } catch (e) { /* first run */ }
   setPage('band');

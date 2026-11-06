@@ -43,6 +43,9 @@ what fits and what doesn't.
 | Reverb, tempo delay, tape wobble | ⚠️ | Use Felucca's `fx.c` reverb/delay rather than convolution |
 | **Sampler, chop bank, video/mic import** | ❌ | Browser-only. Needs large RAM for audio, file decoding (mp4/mov) and a file system |
 | **Private kit import, IndexedDB, loops** | ❌ | Browser-only. On the device, at most a few small kits stored in flash |
+| Sampler pitch / stretch (WSOLA, beats) | ❌ | Offline rendering of whole samples; browser-only with the sampler |
+| XY Effects Pad | ⚠️ | No touch screen on the FM-1. Could map X/Y to two encoders; filter, isolator, delay, stutter and crusher are cheap; beat repeat and tape stop need a RAM buffer (~2 s ≈ 350 KB at 44.1 kHz stereo 16-bit: too much, use mono or shorter) |
+| Metronome | ✅ | Trivial |
 | Web MIDI / computer keyboard | n/a | The hardware keys and TRS/USB MIDI replace them |
 
 ## Module map

@@ -229,4 +229,8 @@ real phone.
   and loops together. The metronome click bypasses it.
 
 ### Status
-See CHANGELOG.md. Not built yet: the "Later" list.
+Built: features 1–9 (see CHANGELOG.md). Not built yet: the "Later" list
+(full song saving, age/vinyl knob, in-app recording/resampling, sampler page B).
+Known rough edges: phone landscape and iPhone SE need some scrolling; folder
+picking may not work on iPhone (multi-select files does); very long samples
+take a moment to stretch the first time.

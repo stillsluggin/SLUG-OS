@@ -6,6 +6,8 @@
 // silent <audio> element is playing. The context can also be suspended or
 // "interrupted" (calls, lock screen), so resumeAudio() runs on every touch.
 
+import { createXY } from './xyfx.js';
+
 let ctx = null;
 let silentEl = null;
 
@@ -93,7 +95,10 @@ export function createMaster(ac) {
 
   const out = ac.createGain();
   out.gain.value = 0.9;
-  input.connect(wow).connect(warmth).connect(tone).connect(limiter).connect(out).connect(ac.destination);
+  // Everything (players, drums, sampler, loops and the reverb/delay returns) -> XY pad -> tape -> out.
+  const xy = createXY(ac);
+  input.connect(xy.input);
+  xy.output.connect(wow).connect(warmth).connect(tone).connect(limiter).connect(out).connect(ac.destination);
 
   // Reverb send
   const reverbIn = ac.createGain();
@@ -102,7 +107,7 @@ export function createMaster(ac) {
   const revHp = ac.createBiquadFilter();
   revHp.type = 'highpass';
   revHp.frequency.value = 200;
-  reverbIn.connect(revHp).connect(reverb).connect(tone);
+  reverbIn.connect(revHp).connect(reverb).connect(input);
 
   // Tempo delay send (dotted 8th by default)
   const delayIn = ac.createGain();
@@ -114,7 +119,7 @@ export function createMaster(ac) {
   dlp.type = 'lowpass';
   dlp.frequency.value = 2800;
   delayIn.connect(delay).connect(dlp).connect(fb).connect(delay);
-  dlp.connect(tone);
+  dlp.connect(input);
 
   const analyser = ac.createAnalyser();
   analyser.fftSize = 1024;
@@ -128,9 +133,9 @@ export function createMaster(ac) {
   };
 
   return {
-    input, reverbIn, delayIn, analyser, stream,
+    input, reverbIn, delayIn, analyser, stream, xy,
     direct: limiter, // for sounds that skip the effects (metronome)
-    setTempo(bpm) { delay.delayTime.setTargetAtTime((60 / bpm) * 0.75, ac.currentTime, 0.1); },
+    setTempo(bpm) { delay.delayTime.setTargetAtTime((60 / bpm) * 0.75, ac.currentTime, 0.1); xy.setTempo(bpm); },
     setTone(v) { tone.frequency.setTargetAtTime(600 * Math.pow(30, v), ac.currentTime, 0.05); },
   };
 }

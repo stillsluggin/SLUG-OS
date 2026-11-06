@@ -19,7 +19,17 @@ following TEMPO, even when the band is stopped.
 
 **BAND**: what's playing, Next Chord, the five players, the knobs and buttons.
 **SEQ**: the 16-step chord sequencer. **DRUMS**: kits, the boom bap pattern,
-finger drums, loops. **SAMPLER**: load, chop and play pads.
+finger drums, loops. **SAMPLER**: load, chop and play pads. **XY FX**: the effects pad.
+
+### XY FX pad
+
+Drag on the big grid: left-right plays the **X** effect, up-down the **Y**
+effect, both at once. Pick each with ◂ ▸: FILTER, ISOLATOR (kills lows, then
+mids), BEAT REPEAT, PHASER, FLANGER, DELAY, TAPE STOP, STUTTER, BIT CRUSH.
+Let go and they glide back to off; turn on **HOLD** to keep them where you
+left them. **Combos**: tap one to load a pairing, hold one to save the current
+pairing in its place. The pad affects everything (band, drums, sampler,
+loops); the metronome stays clean.
 
 ### Sampler pads
 

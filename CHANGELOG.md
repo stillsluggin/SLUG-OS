@@ -5,6 +5,11 @@ All notable changes to Slug OS, newest first. Written for players, not programme
 ## Unreleased (branch claude/slug-os-v2)
 
 ### Added
+- **XY FX pad** (new XY FX tab): drag to play two effects at once, one per axis,
+  chosen from FILTER, ISOLATOR, BEAT REPEAT, PHASER, FLANGER, DELAY, TAPE STOP,
+  STUTTER and BIT CRUSH. Snaps back smoothly on release, with HOLD. Four combo
+  slots (tap to load, hold to save). Works on the whole mix, including reverb
+  and echo tails.
 - **Sampler pitch and stretch**: a STRETCH knob (0.5×–2×) and two new choices
   per pad. PITCH: RESAMPLE (classic, speed and pitch together) or KEEP TIME
   (pitch-shift that keeps timing). WARP: REPITCH (tape), BEATS (drums), SMOOTH

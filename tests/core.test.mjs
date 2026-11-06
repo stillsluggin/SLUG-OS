@@ -200,3 +200,15 @@ test('pitch / warp planner', () => {
   assert.equal(+tape.rate.toFixed(3), 1.333); // repitch: faster and higher
   assert.equal(assignSample(emptyPad(0), { sampleId: 'x', name: 'loop 92bpm', duration: 2 }).srcBpm, 92);
 });
+
+import { XY_EFFECTS, DEFAULT_COMBOS, repeatBeats, snapBack } from '../src/core/xy.js';
+
+test('xy pad: effects, combos, repeat lengths, snap back', () => {
+  assert.deepEqual(XY_EFFECTS, ['filter', 'isolator', 'looper', 'phaser', 'flanger', 'delay', 'tapestop', 'stutter', 'crusher']);
+  assert.ok(DEFAULT_COMBOS.every((c) => XY_EFFECTS.includes(c.x) && XY_EFFECTS.includes(c.y) && c.x !== c.y));
+  assert.equal(repeatBeats(0.1), 1);
+  assert.equal(repeatBeats(1), 1 / 16);
+  assert.equal(snapBack(0.8, 0), 0.8);
+  assert.ok(snapBack(0.8, 0.1) < 0.8);
+  assert.equal(snapBack(0.8, 0.3), 0);
+});

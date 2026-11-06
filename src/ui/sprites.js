@@ -146,6 +146,16 @@ const ART = {
     'kSSSSSSSSSSSSk',
     '.kkkkkkkkkkkk.',
   ],
+  iconFx: [
+    'kkkkkkkkkkkkkk',
+    'kcccckcccccdck',
+    'kcccckccccdddk',
+    'kkkkkkkkkkkdkk',
+    'kcccckcccccgck',
+    'kccgckcccgccck',
+    'kcgcckcgcccccc',
+    'kkkkkkkkkkkkkk',
+  ],
   iconSampler: [
     'kkkkkkkkkkkkkk',
     'kcccccccccccck',
