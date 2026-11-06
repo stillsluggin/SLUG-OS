@@ -47,7 +47,17 @@ export function createKeys(ac) {
     adsr(amp.gain, t, 0.3 * (0.3 + 0.7 * vel), 0.006, decay, 0.16);
     const srcs = [car, car2, mod, bell];
     srcs.forEach((o) => o.start(t));
-    return makeVoice(ac, amp, srcs, { t, a: 0.006, r: 0.35 });
+    return makeVoice(ac, amp, srcs, {
+      t, a: 0.006, r: 0.35,
+      extra: {
+        /** Turning a knob while the note rings: TONE = bark, WAVE = detune swirl. */
+        update([w, tn]) {
+          const now = ac.currentTime;
+          mg.gain.setTargetAtTime((0.5 + tn * 2.8 * Math.pow(vel, 1.4)) * f * 0.3, now, 0.04);
+          car2.detune.setTargetAtTime(4 + w * 4, now, 0.04);
+        },
+      },
+    });
   }
 
   /** The WAVE swirl: tremolo -> 4-stage phaser -> chorus. */

@@ -330,6 +330,17 @@ real phone.
 - Chord History already exists (BAND page, next to the chord name) — the
   owner asked for it again before PR #2 was merged.
 
+### Live knobs, simple Shell Shock (notes)
+- Engine voices may return `update(knobs)`; `output.setPlayer` calls it on
+  held voices when the engine didn't change, so knobs move ringing notes.
+- Shell Shock main screen = pad + HOLD + EDIT + presets (`FACTORY_PRESETS` in
+  `core/xy.js`, then user combos). Everything else is inside EDIT.
+- Hidden knob values are stored per axis: `xy.params['x:<id>']` /
+  `['y:<id>']` (old `params[<id>]` is read as a fallback).
+- STUTTER / BEAT REPEAT use the `slug-repeat` worklet (freeze last slice,
+  loop forward) with a delay-line fallback; ISOLATOR has BAND (LOWS, MIDS,
+  HIGHS, SWEEP) + DEPTH.
+
 ### Status
 Built: features 1–9 (see CHANGELOG.md). Not built yet: the "Later" list
 (full song saving, age/vinyl knob, in-app recording/resampling, sampler page B).

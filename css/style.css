@@ -384,6 +384,10 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .fxn { font-family: var(--px); font-size: 10px; }
 .fxh { font-size: 16px; line-height: 1; color: #5b4a33; }
 .xydot.rest { opacity: .45; }
+.fxstatus { font-family: var(--px); font-size: 9px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fxstatus b { color: var(--shell-d); }
+.combos { grid-template-columns: repeat(2, 1fr); }
+.combo.mine { background: #e8f0cf; }
 .comboedit { display: flex; gap: 3px; align-items: stretch; }
 .comboedit .combo { flex: 1; min-width: 0; }
 .dock .bevel { padding: 4px 2px; }

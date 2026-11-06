@@ -40,10 +40,12 @@ export function createTrip(ac) {
     ops[0].connect(fbDelay).connect(fb).connect(ops[2].frequency);
 
     // Drift: three slow LFOs at uneven rates.
+    const lgs = [];
     const lfos = [0.07, 0.113, 0.191].map((rate, i) => {
       const l = ac.createOscillator();
       l.frequency.value = rate * (0.5 + drift * 2) * (1 + Math.random() * 0.3);
       const lg = ac.createGain();
+      lgs.push(lg);
       l.connect(lg);
       if (i === 0) { lg.gain.value = drift * 25; lg.connect(ops[0].detune); }
       if (i === 1) { lg.gain.value = drift * f * 0.08; lg.connect(ops[1].frequency); }
@@ -54,7 +56,23 @@ export function createTrip(ac) {
     adsr(amp.gain, t, 0.2 * (0.4 + 0.6 * vel), 0.03, 1.5, 0.6);
     const srcs = [...ops, ...lfos];
     srcs.forEach((o) => o.start(t));
-    return makeVoice(ac, amp, srcs, { t, a: 0.03, r: 0.6 });
+    return makeVoice(ac, amp, srcs, {
+      t, a: 0.03, r: 0.6,
+      extra: {
+        /** Turning while it plays: WEIRD = FM depth + feedback, DRIFT = how much it wanders. */
+        update([wd, dr]) {
+          const now = ac.currentTime;
+          const dp = 0.4 + wd * 6;
+          g3.gain.setTargetAtTime(dp * 0.6 * f * ratios[2], now, 0.05);
+          g2.gain.setTargetAtTime(dp * f * ratios[1] * 0.4, now, 0.05);
+          fb.gain.setTargetAtTime(wd * f * 0.8, now, 0.05);
+          lp.frequency.setTargetAtTime(2500 + (1 - wd) * 4000, now, 0.05);
+          lgs[0].gain.setTargetAtTime(dr * 25, now, 0.1);
+          lgs[1].gain.setTargetAtTime(dr * f * 0.08, now, 0.1);
+          if (pan.pan) lgs[2].gain.setTargetAtTime(dr * 0.7, now, 0.1);
+        },
+      },
+    });
   }
 
   return { voice, sends: ([weird, drift]) => ({ reverb: 0.2 + drift * 0.25, delay: 0.05 + weird * 0.1 }) };

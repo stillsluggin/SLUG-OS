@@ -74,7 +74,17 @@ export function createPluck(ac) {
     amp.gain.setValueAtTime(peak, t);
     src.connect(bodyF).connect(toneF).connect(amp).connect(dest);
     src.start(t);
-    return makeVoice(ac, amp, [src], { t, a: 0.001, r: 0.06 + (1 - muffle) * 0.15, autoEnd: t + buf.duration });
+    return makeVoice(ac, amp, [src], {
+      t, a: 0.001, r: 0.06 + (1 - muffle) * 0.15, autoEnd: t + buf.duration,
+      extra: {
+        /** The string is already plucked, so turning changes its tone: MUFFLE darkens, THUMP adds body. */
+        update([th, mu]) {
+          const now = ac.currentTime;
+          toneF.frequency.setTargetAtTime(900 + (1 - mu) * 7000, now, 0.03);
+          bodyF.gain.setTargetAtTime((p.body ?? 0.5) * th * 9, now, 0.03);
+        },
+      },
+    });
   }
 
   return { voice, sends: ([, muffle]) => ({ reverb: 0.1 + (1 - muffle) * 0.1, delay: 0.02 }) };

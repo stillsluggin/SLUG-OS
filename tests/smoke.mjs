@@ -64,6 +64,26 @@ R.presetSwap = await page.evaluate(async () => {
   await new Promise((r) => setTimeout(r, 120));
   return { before, after: app.audio.activeVoices(), voicing: session.state.voicing.length };
 });
+// knobs change the sound of notes that are already ringing
+R.liveKnobs = await page.evaluate(async () => {
+  const { session, app } = window.__slug;
+  const { KNOBS } = await import('/src/core/controls.js');
+  const { engineSlot, ENGINE_IDS } = await import('/src/core/engines.js');
+  const ia = KNOBS.findIndex((k) => k.id === 'a');
+  const res = {};
+  session.focus(0);
+  for (const e of ENGINE_IDS) {
+    session.state.players[0].slot = engineSlot(e, 0); session.knob(ia, 0.2);
+    session.keyDown(0); await new Promise((r) => setTimeout(r, 120));
+    const live = app.audio.liveVoices();
+    session.knob(ia, 0.9); await new Promise((r) => setTimeout(r, 60));
+    res[e] = live;
+    session.keyDown(26); session.keyUp(26); session.keyUp(0);
+    await new Promise((r) => setTimeout(r, 80));
+  }
+  session.state.players[0].slot = engineSlot('keys', 0); session.knob(ia, 0.5);
+  return res;
+});
 // chord history
 await page.evaluate(() => { const s = window.__slug.session; for (const i of [0, 9, 4]) { s.keyDown(i); s.keyUp(i); } });
 await page.waitForTimeout(100);
@@ -226,14 +246,30 @@ R.affects = await page.evaluate(async () => {
 });
 // TWEAK drawer opens with knobs for both axes
 await setFx('lfofilter', 'delay');
-await page.tap('button:has-text("TWEAK")');
+await page.tap('button:has-text("✎ EDIT")');
 R.tweakKnobs = await page.$$eval('.tweakrow', (rows) => rows.map((r) => [...r.querySelectorAll('.kl')].map((k) => k.textContent).join(',')));
-await page.tap('button:has-text("TWEAK")');
-// the loader: tap X, pick TAPE STOP from the list
+// the loader (inside EDIT): tap X, pick TAPE STOP from the list
 await page.tap('.loader >> nth=0');
 R.loaderRows = await page.$$eval('.fxrow', (els) => els.length);
 await page.tap('.fxrow:has-text("TAPE STOP")');
 R.loadedX = await page.evaluate(() => window.__slug.app.xy.x);
+await page.tap('button:has-text("✎ EDIT")');
+// STUTTER is a real loop: stop all sound while it's held and it keeps repeating
+await setFx('stutter', 'filter');
+R.stutter = await page.evaluate(async () => {
+  const { session, app } = window.__slug;
+  const fx = app.audio.master.xy;
+  const lvl = async (ms) => { const an = app.audio.master.analyser; const b = new Float32Array(an.fftSize); let pk = 0; const end = performance.now() + ms; while (performance.now() < end) { an.getFloatTimeDomainData(b); for (const x of b) pk = Math.max(pk, Math.abs(x)); await new Promise((r) => setTimeout(r, 20)); } return +pk.toFixed(3); };
+  session.keyDown(0); session.keyUp(0); await new Promise((r) => setTimeout(r, 600));
+  fx.setAmount('x', 0.3); await new Promise((r) => setTimeout(r, 150));
+  const playing = session.state.playing; session.setPlaying(false); session.keyDown(26); session.keyUp(26); app.audio.allOff?.();
+  await new Promise((r) => setTimeout(r, 1500));
+  const held = await lvl(400);
+  fx.setAmount('x', 0); await new Promise((r) => setTimeout(r, 2500));
+  const released = await lvl(300);
+  if (playing) session.setPlaying(true);
+  return { held, released };
+});
 await setFx('tapestop', 'tapestop');
 // expressive tape stop: just past the start = slow wind-down, far end = instant
 await page.mouse.move(...at(0.12, 0.03)); await page.mouse.down();
@@ -259,7 +295,9 @@ await page.click('text=HOLD'); await page.waitForTimeout(400);
 await setFx('lofi', 'wash');
 R.comboName = await page.textContent('.comboname');
 const before = await page.evaluate(() => window.__slug.app.xy.combos.length);
+await page.tap('button:has-text("✎ EDIT")');
 await page.tap('.namerow .bevel.hot');
+await page.tap('button:has-text("✎ EDIT")');
 R.saved = (await page.evaluate(() => window.__slug.app.xy.combos.length)) - before;
 page.once('dialog', (d) => d.accept('My Mossy Thing'));
 await page.tap('button.bevel:text-is("EDIT")');
@@ -269,8 +307,9 @@ R.renamed = await page.evaluate(() => window.__slug.app.xy.combos.at(-1).name);
 await page.locator('.comboedit').last().locator('.bevel.sm').last().tap();
 R.afterDelete = (await page.evaluate(() => window.__slug.app.xy.combos.length)) - before;
 await page.tap('button.bevel:text-is("DONE")');
-await page.tap('.combo >> nth=1'); await page.waitForTimeout(100);
-R.combo = await page.evaluate(() => `${window.__slug.app.xy.x}+${window.__slug.app.xy.y}`);
+R.presets = await page.$$eval('.combo:not(.mine)', (els) => els.length);
+await page.tap('.combo >> nth=2'); await page.waitForTimeout(100);
+R.combo = await page.evaluate(() => { const s = window.__slug.app.xy; return `${s.x}+${s.y} band=${s.params['x:' + s.x]?.band}`; });
 await page.screenshot({ path: outDir + 'xy.png' });
 // live recording into a part (band is playing)
 await page.evaluate(() => { const s = window.__slug.session; s.focus(3); s.setRec(true); });

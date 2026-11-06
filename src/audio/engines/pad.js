@@ -35,7 +35,19 @@ export function createPad(ac) {
     const a = p.attack ?? 0.3;
     adsr(amp.gain, t, 0.16 * (0.5 + 0.5 * vel), a, 1.2, 0.85);
     oscs.forEach((o) => o.start(t));
-    return makeVoice(ac, amp, oscs, { t, a, r: 0.9 });
+    return makeVoice(ac, amp, oscs, {
+      t, a, r: 0.9,
+      extra: {
+        /** Turning a knob while the chord rings: GLOW = brightness, WIDTH = detune. */
+        update([wd, gl]) {
+          const now = ac.currentTime;
+          lp.frequency.setTargetAtTime(500 + gl * gl * 6500, now, 0.04);
+          const dd = 5 + wd * 12;
+          oscs[0].detune.setTargetAtTime(-dd, now, 0.05);
+          oscs[1].detune.setTargetAtTime(dd, now, 0.05);
+        },
+      },
+    });
   }
 
   function insert() {

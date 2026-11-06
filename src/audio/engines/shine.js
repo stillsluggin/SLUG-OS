@@ -60,7 +60,13 @@ export function createShine(ac) {
     const a = p.chip ? 0.002 : 0.012;
     adsr(amp.gain, t, (p.chip ? 0.13 : 0.22) * (0.4 + 0.6 * vel), a, p.decay ?? 0.4, p.sustain ?? 0.75);
     oscs.forEach((o) => o.start(t));
-    return makeVoice(ac, amp, oscs, { t, a, r: p.chip ? 0.05 : 0.25 });
+    return makeVoice(ac, amp, oscs, {
+      t, a, r: p.chip ? 0.05 : 0.25,
+      extra: {
+        /** Turning SPARKLE while it plays: more or less top-end bite. */
+        update([sp]) { if (!p.chip) shelf.gain.setTargetAtTime(-6 + sp * 12, ac.currentTime, 0.03); },
+      },
+    });
   }
 
   /** AIR: ping-pong-ish stereo delay with a bright feedback path. */

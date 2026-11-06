@@ -16,13 +16,13 @@
 export const SHELL_EFFECTS = [
   { id: 'filter', label: 'FILTER', hint: 'low-pass sweep, darker', a: ['Muffled', 'Murky', 'Underwater'], b: ['Fog', 'Sweep', 'Haze'] , params: [{ id: 'res', label: 'RES', def: 0.4 }, { id: 'range', label: 'RANGE', def: 0.5 }] },
   { id: 'lfofilter', label: 'LFO FILTER', hint: 'tempo-synced low-pass sweep, deeper as you go', a: ['Breathing', 'Tidal', 'Pulsing'], b: ['Tide', 'Breath', 'Sweep'], params: [{ id: 'rate', label: 'RATE', def: 0.5, steps: 7 }, { id: 'res', label: 'RES', def: 0.4 }, { id: 'shape', label: 'SHAPE', def: 0, steps: 4 }, { id: 'center', label: 'CENTER', def: 0.5 }] },
-  { id: 'isolator', label: 'ISOLATOR', hint: 'kills lows, then mids', a: ['Hollow', 'Thin', 'Skeleton'], b: ['Kill', 'Cut', 'Drop'] , params: [{ id: 'low', label: 'LOW F', def: 0.4 }, { id: 'mid', label: 'MID F', def: 0.5 }] },
+  { id: 'isolator', label: 'ISOLATOR', hint: 'kills the lows, mids or highs (pick the band)', a: ['Hollow', 'Thin', 'Skeleton'], b: ['Kill', 'Cut', 'Drop'] , params: [{ id: 'band', label: 'BAND', def: 0, steps: 4 }, { id: 'depth', label: 'DEPTH', def: 1 }] },
   { id: 'looper', label: 'BEAT REPEAT', hint: 'loops the last beat, shorter as you go', a: ['Looping', 'Stuck', 'Echoing'], b: ['Loop', 'Repeat', 'Spiral'] , params: [{ id: 'feel', label: 'TRIPLET', def: 0 }, { id: 'fade', label: 'FADE', def: 0 }] },
   { id: 'phaser', label: 'PHASER', hint: 'deep swirl', a: ['Swirly', 'Spinning', 'Liquid'], b: ['Swirl', 'Whirl', 'Eddy'] , params: [{ id: 'rate', label: 'RATE', def: 0.3 }, { id: 'color', label: 'COLOR', def: 0.5 }] },
   { id: 'flanger', label: 'FLANGER', hint: 'jet-plane whoosh', a: ['Jet', 'Metal', 'Comet'], b: ['Jet', 'Rush', 'Streak'] , params: [{ id: 'rate', label: 'RATE', def: 0.3 }, { id: 'fb', label: 'FEEDBACK', def: 0.5 }] },
   { id: 'delay', label: 'DELAY', hint: 'tempo echoes, more = longer', a: ['Echo', 'Canyon', 'Cave'], b: ['Echo', 'Ripple', 'Return'] , params: [{ id: 'time', label: 'TIME', def: 0.5, steps: 5 }, { id: 'fb', label: 'FEEDBACK', def: 0.6 }, { id: 'tone', label: 'TONE', def: 0.5 }] },
   { id: 'tapestop', label: 'TAPE STOP', hint: 'slow wind-down to instant stop', a: ['Tape', 'Sleepy', 'Rusty'], b: ['Halt', 'Stop', 'Nap'] , params: [{ id: 'spin', label: 'SPIN-UP', def: 0.5 }, { id: 'dark', label: 'DARK', def: 0.6 }] },
-  { id: 'stutter', label: 'STUTTER', hint: 'chops in time, faster as you go', a: ['Stutter', 'Glitchy', 'Jittery'], b: ['Glitch', 'Chop', 'Twitch'] , params: [{ id: 'grid', label: 'GRID', def: 0.5, steps: 3 }, { id: 'soft', label: 'SOFT', def: 0 }] },
+  { id: 'stutter', label: 'STUTTER', hint: 'loops tiny slices: 1/8 rolling down to 1/64', a: ['Stutter', 'Glitchy', 'Jittery'], b: ['Glitch', 'Chop', 'Twitch'] , params: [{ id: 'feel', label: 'TRIPLET', def: 0, steps: 2 }, { id: 'fade', label: 'FADE', def: 0 }] },
   { id: 'crusher', label: 'BIT CRUSH', hint: 'fewer bits, gritty', a: ['Pixel', 'Crunchy', 'Gritty'], b: ['Static', 'Crunch', 'Grit'] , params: [{ id: 'tone', label: 'TONE', def: 0.5 }, { id: 'mix', label: 'MIX', def: 1 }] },
   { id: 'lofi', label: 'LO-FI', hint: 'lower sample rate + bits + hiss', a: ['Cassette', 'Dusty', 'Lo-Fi'], b: ['Dust', 'Hiss', 'Cassette'] , params: [{ id: 'era', label: 'ERA', def: 0.4, steps: 4 }, { id: 'hiss', label: 'HISS', def: 0.4 }] },
   { id: 'wobble', label: 'VINYL WOBBLE', hint: 'warped record wow + crackle', a: ['Warped', 'Vinyl', 'Seasick'], b: ['Wobble', 'Warp', 'Wow'] , params: [{ id: 'rate', label: 'RATE', def: 0.4 }, { id: 'crackle', label: 'CRACKLE', def: 0.5 }] },
@@ -99,4 +99,36 @@ export const LFO_RATE_NAMES = ['4 BARS', '2 BARS', '1 BAR', '1/2', '1/4', '1/8',
 export const DELAY_TIMES = [0.5, 0.75, 1, 1.5, 2]; // 1/8, dotted 1/8, 1/4, dotted 1/4, 1/2
 export const DELAY_TIME_NAMES = ['1/8', '1/8.', '1/4', '1/4.', '1/2'];
 export const LOFI_ERAS = ['SAMPLER', 'CASSETTE', 'RADIO', 'CONSOLE'];
+export const ISO_BANDS = ['LOWS', 'MIDS', 'HIGHS', 'SWEEP'];
+
+/** STUTTER slice length (in beats) for an amount: 1/8 note rolling down to 1/64. */
+export function stutterBeats(amount) {
+  const lens = [0.5, 0.25, 0.125, 0.0625];
+  return lens[Math.min(lens.length - 1, Math.floor(Math.max(0, amount - 0.06) / 0.94 * lens.length))];
+}
 export const stepOf = (v, n) => Math.min(n - 1, Math.floor(v * n));
+
+/**
+ * Factory presets: ready-made pairings with their hidden knobs set. They show
+ * first on the SHELL SHOCK page; your saved combos come after them.
+ * (px / py = hidden-knob settings for X / Y.)
+ */
+export const FACTORY_PRESETS = [
+  { name: 'DJ FILTER', x: 'filter', y: 'isolator', py: { band: 0.4 } }, // Y kills the mids
+  { name: 'KILL LOWS', x: 'isolator', y: 'filter', px: { band: 0.1 } },
+  { name: 'KILL MIDS', x: 'isolator', y: 'filter', px: { band: 0.4 } },
+  { name: 'KILL HIGHS', x: 'isolator', y: 'filter', px: { band: 0.6 } },
+  { name: 'STUTTER ROLL', x: 'stutter', y: 'filter' },
+  { name: 'BEAT REPEAT', x: 'looper', y: 'filter' },
+  { name: 'DUB ECHO', x: 'delay', y: 'filter', px: { time: 0.5, fb: 0.75 } },
+  { name: 'TAPE STOP', x: 'tapestop', y: 'dive' },
+  { name: 'LO-FI DUST', x: 'lofi', y: 'wobble', px: { era: 0.3 } },
+  { name: 'LFO SWEEP', x: 'lfofilter', y: 'isolator', px: { rate: 0.6 }, py: { band: 0.1 } },
+  { name: 'TRANCE GATE', x: 'gate', y: 'delay' },
+  { name: 'REWIND', x: 'reverse', y: 'wash' },
+  { name: 'SPACE', x: 'phaser', y: 'flanger' },
+  { name: 'GLITCH', x: 'stutter', y: 'crusher', px: { feel: 0.8 } },
+  { name: 'WASH OUT', x: 'wash', y: 'filter' },
+  { name: 'ROBOT', x: 'ringmod', y: 'crusher' },
+  { name: 'WARM TAPE', x: 'saturate', y: 'chorus' },
+];

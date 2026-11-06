@@ -34,19 +34,31 @@ Drag on the big grid: left-right plays the **X** effect, up-down the **Y**
 effect, both at once. A little shell follows your finger and leaves a slime
 trail. Let go and the effects glide back to off; turn on **HOLD** to keep them.
 
-- **Load any effect**: tap **X** or **Y** to open the list and tap one. Any
+- **Presets**: under the pad, one tap loads a ready-made pair: DJ FILTER,
+  KILL LOWS / KILL MIDS / KILL HIGHS (isolator), STUTTER ROLL, BEAT REPEAT,
+  DUB ECHO, TAPE STOP, LO-FI DUST, LFO SWEEP, TRANCE GATE, REWIND, SPACE,
+  GLITCH, WASH OUT, ROBOT, WARM TAPE. Your saved combos sit below them.
+- **✎ EDIT** opens everything else: the X/Y effect loaders, the name + SAVE,
+  AFFECTS and the hidden knobs. Closed, the screen is just pad + presets.
+- **STUTTER** is a real DJ-style loop repeater: it grabs the last slice of
+  audio and repeats it, rolling from 1/8 down to 1/64 as you push further
+  (hidden knobs: TRIPLET feel, FADE each repeat). **BEAT REPEAT** does the
+  same with longer loops (1 beat down to 1/16).
+- **ISOLATOR** kills one band: its BAND knob picks LOWS, MIDS, HIGHS or
+  SWEEP (the old lows-then-mids-then-highs behaviour); DEPTH sets how deep.
+- **Load any effect** (in EDIT): tap **X** or **Y** to open the list and tap one. Any
   effect can go on either axis, even the same one twice. The 18 effects:
   FILTER, ISOLATOR, BEAT REPEAT, PHASER, FLANGER, DELAY, TAPE STOP, STUTTER,
   BIT CRUSH, LO-FI, VINYL WOBBLE, TAPE SATURATION, REVERB WASH, CHORUS,
   RING MOD, PITCH DIVE, TRANCE GATE, REVERSE REPEAT.
-- **⚙ TWEAK** opens a drawer with 2–4 hidden knobs for each loaded effect
+- **Hidden knobs** (in EDIT): 2–4 per loaded effect for each loaded effect
   (e.g. FILTER RES/RANGE, DELAY TIME/FEEDBACK/TONE, LO-FI ERA/HISS). Each
   effect remembers its settings; saved combos keep them.
 - **LFO FILTER**: a tempo-synced low-pass sweep that starts on the beat. Pad =
-  depth; TWEAK: RATE (4 bars to 1/16), RES, SHAPE (sine/tri/square/saw), CENTER.
+  depth; hidden knobs: RATE (4 bars to 1/16), RES, SHAPE (sine/tri/square/saw), CENTER.
 - **LO-FI ERA**: SAMPLER (12-bit), CASSETTE (soft top, hiss, wow), RADIO
   (narrow, crunchy), CONSOLE (8-bit).
-- **AFFECTS** (in TWEAK): ALL, BAND (the four synth players), DRUMS or SAMPLER
+- **AFFECTS** (in EDIT): ALL, BAND (the four synth players), DRUMS or SAMPLER
   (with loops). Only the chosen part goes through the pad.
 - **TAPE STOP** is played by position: just past the start the tape winds
   down slowly (about 3 seconds), further along it's quicker, at the far end it

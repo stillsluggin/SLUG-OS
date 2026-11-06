@@ -3,7 +3,7 @@
 
 import { h, win, button, tap, knob } from './widgets.js';
 import { spriteImg } from './sprites.js';
-import { SHELL_EFFECTS, XY_LABELS, XY_HINTS, XY_TARGETS, comboName, snapBack, defaultParams, paramsOf, stepOf, LFO_RATE_NAMES, DELAY_TIME_NAMES, LOFI_ERAS } from '../core/xy.js';
+import { FACTORY_PRESETS, SHELL_EFFECTS, XY_LABELS, XY_HINTS, XY_TARGETS, comboName, snapBack, defaultParams, paramsOf, stepOf, LFO_RATE_NAMES, DELAY_TIME_NAMES, LOFI_ERAS, ISO_BANDS } from '../core/xy.js';
 
 export function fxPage(app) {
   const s = app.xy; // { x, y, hold, combos, ax, ay, roll }
@@ -41,6 +41,7 @@ export function fxPage(app) {
   function choose(id) {
     s[loaderAxis] = id;
     s.roll = 0;
+    s.active = null;
     closeLoader();
     apply();
     app.saveXY();
@@ -52,7 +53,7 @@ export function fxPage(app) {
   const diceBtn = button('🎲', () => { s.roll++; update(); }, 'sm');
   diceBtn.title = 'Another name';
   const saveBtn = button('SAVE', () => {
-    s.combos.push({ name: currentName(), x: s.x, y: s.y, px: { ...paramsFor(s.x) }, py: { ...paramsFor(s.y) } });
+    s.combos.push({ name: currentName(), x: s.x, y: s.y, px: { ...paramsFor('x') }, py: { ...paramsFor('y') } });
     app.saveXY();
     app.toast(`SAVED · ${currentName()}`);
     update();
@@ -139,41 +140,56 @@ export function fxPage(app) {
   const comboGrid = h('div.combos');
   let editing = false;
   const editBtn = button('EDIT', () => { editing = !editing; renderCombos(); }, 'sm');
+  /** Load a preset or saved combo: both effects plus their hidden-knob settings. */
+  function loadPreset(c) {
+    s.x = c.x; s.y = c.y; s.roll = 0;
+    s.params[`x:${c.x}`] = { ...defaultParams(c.x), ...(c.px || {}) };
+    s.params[`y:${c.y}`] = { ...defaultParams(c.y), ...(c.py || {}) };
+    s.active = c.name;
+    apply(); app.saveXY(); update(); app.toast(c.name);
+  }
+
   function renderCombos() {
     editBtn.classList.toggle('on', editing);
     editBtn.textContent = editing ? 'DONE' : 'EDIT';
     comboGrid.innerHTML = '';
-    if (!s.combos.length) comboGrid.append(h('p.help', { text: 'No combos yet. Build a pairing and tap SAVE.' }));
+    // Factory presets first, then your saved ones.
+    for (const c of FACTORY_PRESETS) {
+      const b = h('button.bevel.combo', { type: 'button' }, h('b', { text: c.name }), h('small', { text: `${XY_LABELS[c.x]} + ${XY_LABELS[c.y]}` }));
+      b.classList.toggle('on', s.active === c.name && c.x === s.x && c.y === s.y);
+      tap(b, () => loadPreset(c));
+      comboGrid.append(b);
+    }
+    myLabel.style.display = s.combos.length ? '' : 'none';
+    myGrid.innerHTML = '';
     s.combos.forEach((c, i) => {
-      const b = h('button.bevel.combo', { type: 'button' }, h('b', { text: c.name }), h('small', { text: `${XY_LABELS[c.x] || c.x} + ${XY_LABELS[c.y] || c.y}` }));
-      b.classList.toggle('on', c.x === s.x && c.y === s.y);
-      if (!editing) {
-        tap(b, () => {
-          s.x = c.x; s.y = c.y; s.roll = 0;
-          // A combo brings back its hidden-knob settings too.
-          if (c.px) s.params[c.x] = { ...c.px };
-          if (c.py) s.params[c.y] = { ...c.py };
-          apply(); app.saveXY(); update(); app.toast(c.name);
-        });
-        comboGrid.append(b);
-        return;
-      }
+      const b = h('button.bevel.combo.mine', { type: 'button' }, h('b', { text: c.name }), h('small', { text: `${XY_LABELS[c.x] || c.x} + ${XY_LABELS[c.y] || c.y}` }));
+      b.classList.toggle('on', s.active === c.name && c.x === s.x && c.y === s.y);
+      if (!editing) { tap(b, () => loadPreset(c)); myGrid.append(b); return; }
       const rename = button('✎', () => {
         const name = window.prompt('Name this combo', c.name);
         if (name && name.trim()) { c.name = name.trim().slice(0, 40); app.saveXY(); renderCombos(); }
       }, 'sm');
       const del = button('✕', () => { s.combos.splice(i, 1); app.saveXY(); renderCombos(); }, 'sm');
-      comboGrid.append(h('div.comboedit', {}, b, rename, del));
+      myGrid.append(h('div.comboedit', {}, b, rename, del));
     });
   }
+  const myGrid = h('div.combos');
+  const myLabel = h('div.row', { style: 'margin-top:8px' }, h('span.lab', { text: 'MY COMBOS' }), h('span.grow'), editBtn);
 
   const holdBtn = button('HOLD', () => { s.hold = !s.hold; if (!s.hold) release(); update(); app.saveXY(); });
 
   // ---- TWEAK: each effect's hidden knobs, and what the pad affects (out of the way until you want it)
   s.params = s.params || {};
   s.target = s.target || 'ALL';
-  const paramsFor = (id) => (s.params[id] = { ...defaultParams(id), ...(s.params[id] || {}) });
-  const tweakBtn = button('⚙ TWEAK', () => { tweakOpen = !tweakOpen; update(); });
+  // Hidden-knob settings are kept per axis + effect, so the same effect can sit on
+  // both axes with different settings (e.g. an isolator killing lows on X, highs on Y).
+  const paramsFor = (axis) => {
+    const id = s[axis];
+    const key = `${axis}:${id}`;
+    return (s.params[key] = { ...defaultParams(id), ...(s.params[id] || {}), ...(s.params[key] || {}) });
+  };
+  const tweakBtn = button('✎ EDIT', () => { tweakOpen = !tweakOpen; update(); });
   let tweakOpen = false;
   const tweakRows = { x: h('div.tweakrow'), y: h('div.tweakrow') };
   const targetBtns = XY_TARGETS.map((t) => button(t, () => { s.target = t; app.audio?.setXYTarget(t); app.saveXY(); update(); }, 'sm'));
@@ -186,7 +202,9 @@ export function fxPage(app) {
     if (id === 'delay' && pid === 'time') return DELAY_TIME_NAMES[stepOf(v, DELAY_TIME_NAMES.length)];
     if (id === 'lofi' && pid === 'era') return LOFI_ERAS[stepOf(v, LOFI_ERAS.length)];
     if (id === 'wash' && pid === 'size') return ['ROOM', 'HALL', 'CAVE', 'CANYON'][stepOf(v, 4)];
-    if (id === 'stutter' && pid === 'grid') return ['SLOW', 'MID', 'FAST'][stepOf(v, 3)];
+    if (id === 'stutter' && pid === 'feel') return v >= 0.5 ? 'TRIPLET' : 'STRAIGHT';
+    if (id === 'looper' && pid === 'feel') return v >= 0.5 ? 'TRIPLET' : 'STRAIGHT';
+    if (id === 'isolator' && pid === 'band') return ISO_BANDS[stepOf(v, 4)];
     if (id === 'reverse' && pid === 'length') return ['1/2', '1 BEAT', '2 BEATS', '1 BAR'][stepOf(v, 4)];
     if (id === 'gate' && pid === 'pattern') return `PAT ${stepOf(v, 6) + 1}`;
     return null;
@@ -200,12 +218,11 @@ export function fxPage(app) {
       const knobs = h('div.tweakknobs');
       for (const prm of paramsOf(id)) {
         const k = knob({
-          label: () => stepName(id, prm.id, paramsFor(id)[prm.id]) || prm.label,
-          get: () => paramsFor(id)[prm.id],
+          label: () => stepName(id, prm.id, paramsFor(axis)[prm.id]) || prm.label,
+          get: () => paramsFor(axis)[prm.id],
           set: (v) => {
-            paramsFor(id)[prm.id] = v;
-            fx()?.setParams(axis, paramsFor(id));
-            if (s.x === s.y) fx()?.setParams(axis === 'x' ? 'y' : 'x', paramsFor(id));
+            paramsFor(axis)[prm.id] = v;
+            fx()?.setParams(axis, paramsFor(axis));
             k.update();
             saveSoonXY();
           },
@@ -218,21 +235,27 @@ export function fxPage(app) {
   }
   let xyTimer = null;
   const saveSoonXY = () => { clearTimeout(xyTimer); xyTimer = setTimeout(() => app.saveXY(), 300); };
+  // What's loaded, in one quiet line (the details live under EDIT).
+  const statusEl = h('div.fxstatus');
+  drawer.prepend(
+    h('div.lab', { text: 'LOAD ANY EFFECT ON EACH AXIS' }),
+    h('div.loaders', {}, loadX, loadY),
+    h('div.row.namerow', {}, nameEl, diceBtn, saveBtn),
+  );
   const el = h('div.page', {},
     win('Shell Shock', [
-      h('div.loaders', {}, loadX, loadY),
-      h('div.row.namerow', {}, nameEl, diceBtn, saveBtn),
-      h('div.xywrap', {}, pad),
+      statusEl,
+      h('div.xywrap', { style: 'margin-top:4px' }, pad),
       h('div.row', { style: 'margin-top:6px' }, holdBtn, tweakBtn, h('span.grow'), h('span.help.padhelp', { text: 'Drag: both effects. Let go: they glide back.' })),
       drawer,
     ]),
-    win('Combos', [h('div.row', {}, h('span.lab', { text: 'SAVED' }), h('span.grow'), editBtn), h('div', { style: 'margin-top:6px' }, comboGrid)]),
+    win('Presets', [comboGrid, myLabel, h('div', { style: 'margin-top:4px' }, myGrid)]),
     loader,
   );
 
   function apply() {
-    fx()?.setEffect('x', s.x, paramsFor(s.x));
-    fx()?.setEffect('y', s.y, paramsFor(s.y));
+    fx()?.setEffect('x', s.x, paramsFor('x'));
+    fx()?.setEffect('y', s.y, paramsFor('y'));
     app.audio?.setXYTarget(s.target || 'ALL');
     fx()?.setAmount('x', s.ax || 0);
     fx()?.setAmount('y', s.ay || 0);
@@ -244,6 +267,9 @@ export function fxPage(app) {
     loadY.innerHTML = '';
     loadY.append(h('small', { text: 'Y ↑' }), h('span', { text: XY_LABELS[s.y] || s.y }), h('i', { text: '▾' }));
     nameEl.textContent = `“${currentName()}”`;
+    const bandOf = (axis) => (s[axis] === 'isolator' ? ` (${ISO_BANDS[stepOf(paramsFor(axis).band, 4)]})` : '');
+    statusEl.innerHTML = '';
+    statusEl.append(h('b', { text: 'X ' }), `${XY_LABELS[s.x]}${bandOf('x')}`, h('b', { text: '   Y ' }), `${XY_LABELS[s.y]}${bandOf('y')}`);
     xHint.textContent = `${XY_LABELS[s.x]} → ${XY_HINTS[s.x]}`;
     yHint.textContent = `${XY_LABELS[s.y]} ↑ ${XY_HINTS[s.y]}`;
     holdBtn.classList.toggle('on', s.hold);

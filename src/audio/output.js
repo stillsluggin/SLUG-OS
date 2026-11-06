@@ -78,6 +78,8 @@ export function createOutput(ac) {
     const k = p.slot.knobs;
     b.morph.set((MORPH_MAP[p.slot.engine] || (() => ({})))(k[2] ?? 0, k[3] ?? 0));
     if (b.insert) b.insert.set(p.slot.knobs, presetParams(p.slot));
+    // Notes already sounding follow the knobs live (engines that can).
+    if (prevEngine === p.slot.engine) for (const a of active) if (a.player === p.id) a.v.update?.(p.slot.knobs);
     const s = eng.sends(p.slot.knobs);
     b.rev.gain.setTargetAtTime(s.reverb, ac.currentTime, 0.05);
     b.del.gain.setTargetAtTime(s.delay, ac.currentTime, 0.05);
@@ -294,6 +296,7 @@ export function createOutput(ac) {
     renderer,
     analyser: master.analyser,
     activeVoices: () => { prune(); return active.length; },
+    liveVoices: () => { prune(); return active.filter((a) => typeof a.v.update === 'function').length; },
     bindClock({ step, stepDur }) { onStep = step; stepDurOf = stepDur; },
     setTempo(bpm) {
       tempo = bpm;
