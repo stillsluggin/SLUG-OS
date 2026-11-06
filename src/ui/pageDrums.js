@@ -49,11 +49,11 @@ export function drumsPage(app) {
   const rangeLab = h('span.lab');
   const r = st.drums.range;
   const nudge = (i, d) => { r[i] = Math.max(60, Math.min(150, r[i] + d)); if (r[0] > r[1]) r[1 - i] = r[i]; update(); };
-  const patWin = win('Boom Bap Pattern', [
-    h('div.row', {}, button('★ BOOM BAP', () => session.generateDrums(), 'hot'), button('RANGE', () => session.generateDrums({ useRange: true })),
+  const patWin = win('Beat', [
+    h('div.row', {}, button('★ NEW BEAT', () => session.generateDrums(), 'hot'), button('RANGE', () => session.generateDrums({ useRange: true })),
       button('−', () => nudge(0, -5), 'sm'), rangeLab, button('+', () => nudge(1, 5), 'sm'), h('span.grow'), button('CLEAR', () => session.setPattern(Object.fromEntries(LANES.map((l) => [l, Array(16).fill(0)]))), 'sm')),
     h('div', { style: 'margin-top:6px;overflow-x:auto' }, grid),
-    h('p.help', { text: 'Tap a cell: off → ghost → hit. BOOM BAP writes a beat for the current tempo; RANGE also picks a tempo in the range.' }),
+    h('p.help', { text: 'Tap a cell: off → ghost → hit. NEW BEAT writes a beat in the current style (boom bap, funk, soul, jazz, knock...) for the tempo; RANGE also picks a tempo in the range. A generated beat changes with the style; once you edit it, it stays yours.' }),
   ], { cls: 'span' });
 
   // ---- Pads

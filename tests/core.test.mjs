@@ -442,8 +442,8 @@ test('transpose: changing key moves the whole project', () => {
 
 import { STYLE_LABELS } from '../src/core/nextChord.js';
 
-test('styles: renamed, six of them, each plays the full band with variation', () => {
-  assert.deepEqual(STYLE_IDS.map((id) => STYLE_LABELS[id]), ['BREATHE', 'FOCUS', 'STOMP', 'CRUISE', 'BLOOM', 'DRIFT']);
+test('styles: all eleven play the full band with variation', () => {
+  assert.deepEqual(STYLE_IDS.map((id) => STYLE_LABELS[id]), ['BREATHE', 'FOCUS', 'STOMP', 'CRUISE', 'BLOOM', 'DRIFT', 'BOOM BAP', 'DUSTY', 'STRUT', 'GOLDEN', 'KNOCK']);
   for (const style of STYLE_IDS) {
     const out = fakeOut();
     const s = createSession(out, { rng });
@@ -462,4 +462,32 @@ test('styles: renamed, six of them, each plays the full band with variation', ()
     assert.ok(out.log.some((e) => e[0] === 'drum'), `${style}: drums`);
     assert.ok(new Set(bars.map((b) => b.join())).size >= 2, `${style}: bars vary`);
   }
+});
+
+import { generateBeat, STYLE_DRUMS } from '../src/core/drums.js';
+
+test('hip hop: style-aware beats, CHOP mode, generated beat follows the style', () => {
+  for (const style of STYLE_IDS) {
+    assert.ok(STYLE_DRUMS[style], `${style} has a drum feel`);
+    const p = generateBeat(style, 90, rng);
+    assert.ok(p.kick.some(Boolean), `${style} has kicks`);
+  }
+  assert.equal(generateBeat('knock', 140, rng).snare[8], 2, 'knock: half-time snare on beat 3');
+  assert.ok(generateBeat('strut', 100, rng).hat.filter(Boolean).length >= 12, 'funk: 16th hats');
+  const out = fakeOut();
+  const s = createSession(out, { rng });
+  s.keyDown(5); s.keyUp(5);
+  while (s.state.players[0].harmonyMode !== 'CHOP') s.cycleFeel(0);
+  s.setPlaying(true);
+  out.log.length = 0;
+  for (let n = 0; n < 32; n++) s.step(n, n * 0.17);
+  assert.ok(out.log.filter((e) => e[0] === 'play' && e[1] === 'harmony').length >= 6, 'CHOP stabs');
+  // style change swaps a generated beat, keeps an edited one
+  const styleKnob = 3;
+  s.knob(styleKnob, (STYLE_IDS.indexOf('knock') + 0.5) / STYLE_IDS.length);
+  assert.equal(s.state.drums.pattern.snare[8], 2);
+  s.toggleDrumStep('kick', 5);
+  const mine = JSON.stringify(s.state.drums.pattern);
+  s.knob(styleKnob, (STYLE_IDS.indexOf('strut') + 0.5) / STYLE_IDS.length);
+  assert.equal(JSON.stringify(s.state.drums.pattern), mine, 'edited beat kept');
 });

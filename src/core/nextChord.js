@@ -26,8 +26,11 @@ import { makeChord, chordPcs, chordName, romanOf, qualityName, diatonicChord, bo
 
 export const TAGS = ['NOSTALGIC', 'EMOTIONAL', 'CALM', 'SURPRISE'];
 // Internal ids stay the same so saved projects still load; the names on screen changed.
-export const STYLE_IDS = ['nujabes', 'tyler', 'motown', 'cruise', 'bloom', 'drift'];
-export const STYLE_LABELS = { nujabes: 'BREATHE', tyler: 'FOCUS', motown: 'STOMP', cruise: 'CRUISE', bloom: 'BLOOM', drift: 'DRIFT' };
+export const STYLE_IDS = ['nujabes', 'tyler', 'motown', 'cruise', 'bloom', 'drift', 'boombap', 'dusty', 'strut', 'golden', 'knock'];
+export const STYLE_LABELS = {
+  nujabes: 'BREATHE', tyler: 'FOCUS', motown: 'STOMP', cruise: 'CRUISE', bloom: 'BLOOM', drift: 'DRIFT',
+  boombap: 'BOOM BAP', dusty: 'DUSTY', strut: 'STRUT', golden: 'GOLDEN', knock: 'KNOCK',
+};
 
 // ---------------------------------------------------------------------------
 // STYLE TABLES
@@ -204,6 +207,123 @@ const STYLES = {
       bVII: ['i m9 CALM .85 home', 'bVI maj7 NOSTALGIC .7 steps down', 'bIII maj7 EMOTIONAL .6 relative major', 'IV 6 SURPRISE .45 dorian light'],
     },
   },
+
+  // ---- Hip hop, jazz, funk and soul styles (no artist names, just grooves) ----
+
+  // BOOM BAP: dusty minor loops, two-chord vamps, chopped stabs.
+  boombap: {
+    major: {
+      I: ['vi m9 NOSTALGIC .9 flips to the minor loop', 'IV maj7 CALM .75 lifts', 'iii m7 EMOTIONAL .6 drifts', 'bVII 9 SURPRISE .55 borrowed bVII'],
+      ii: ['V 9sus4 NOSTALGIC .85 the ii–V', 'vi m9 EMOTIONAL .6 falls', 'IV maj7 CALM .6 lifts', 'bII maj7 SURPRISE .5 slides down'],
+      iii: ['vi m9 NOSTALGIC .85 down a fifth', 'IV maj7 CALM .7 steps up', 'ii m9 EMOTIONAL .6 sighs', 'bIII maj7 SURPRISE .5 slides'],
+      IV: ['iii m7 NOSTALGIC .8 the two-chord loop', 'I maj7 CALM .7 settles', 'ii m9 EMOTIONAL .6 steps down', 'iv m9 SURPRISE .6 borrowed minor iv'],
+      V: ['vi m9 EMOTIONAL .8 deceptive', 'I maj7 CALM .75 home', 'IV maj7 NOSTALGIC .6 backs off', 'bVI maj7 SURPRISE .5 borrowed bVI'],
+      vi: ['IV maj7 NOSTALGIC .85 the vi–IV loop', 'ii m9 CALM .7 down a fifth', 'iii m7 EMOTIONAL .6 steps down', 'bVI maj7 SURPRISE .5 slides'],
+      vii: ['iii m7 NOSTALGIC .8 down a fifth', 'vi m9 EMOTIONAL .6 falls', 'I maj7 CALM .6 home', 'bVII 9 SURPRISE .5 slides'],
+    },
+    minor: {
+      i: ['iv m9 NOSTALGIC .95 the two-chord loop', 'bVI maj7 EMOTIONAL .8 sinks', 'bVII 7 CALM .65 lifts', 'v m9 CALM .6 drifts', 'bII maj7 SURPRISE .55 dark slide'],
+      ii: ['V 7 NOSTALGIC .85 minor ii–V', 'i m9 EMOTIONAL .6 falls home', 'bIII maj7 CALM .6 steps up', 'bII maj7 SURPRISE .5 slides'],
+      bIII: ['bVI maj7 NOSTALGIC .8 down a fifth', 'iv m9 EMOTIONAL .7 rises', 'bVII 7 CALM .65 sways', 'bII maj7 SURPRISE .45 slides'],
+      iv: ['i m9 NOSTALGIC .9 back to the loop', 'bVI maj7 EMOTIONAL .7 steps up', 'v m9 CALM .6 rises', 'IV 7 SURPRISE .5 dorian lift'],
+      v: ['i m9 CALM .85 home', 'bVI maj7 EMOTIONAL .75 steps up', 'iv m9 NOSTALGIC .65 falls back', 'bII maj7 SURPRISE .5 sidesteps'],
+      bVI: ['v m9 NOSTALGIC .8 falls a half step', 'i m9 CALM .7 home', 'bVII 7 EMOTIONAL .6 climbs', 'V 7 SURPRISE .5 tense dominant'],
+      bVII: ['i m9 NOSTALGIC .9 home, loop it', 'bVI maj7 EMOTIONAL .7 steps down', 'iv m9 CALM .6 falls back', 'bII maj7 SURPRISE .45 floats'],
+    },
+  },
+
+  // DUSTY: jazz hip hop. ii–V–I everywhere, 11ths and 13ths, tritone subs.
+  dusty: {
+    major: {
+      I: ['ii m9 NOSTALGIC .9 starts a ii–V', 'vi m11 EMOTIONAL .7 falls', 'IV maj9 CALM .7 lifts', 'iii m7 CALM .6 to the iii–vi', 'VI 7 SURPRISE .6 turnaround dominant'],
+      ii: ['V 13 NOSTALGIC 1 the ii–V', 'iii m7 CALM .6 steps up', 'vi m11 EMOTIONAL .55 falls', 'bII 7 SURPRISE .7 tritone sub'],
+      iii: ['vi m11 NOSTALGIC .85 iii–vi', 'IV maj9 CALM .65 steps up', 'ii m9 EMOTIONAL .6 sighs', 'bIII 7 SURPRISE .6 chromatic dominant'],
+      IV: ['iii m7 NOSTALGIC .8 steps down', 'V 13 CALM .65 lifts', 'ii m9 EMOTIONAL .6 falls', '#iv m7b5 SURPRISE .6 jazz passing chord'],
+      V: ['I maj9 CALM .9 home', 'vi m11 EMOTIONAL .7 deceptive', 'iii m7 NOSTALGIC .6 drifts', 'bVI 9 SURPRISE .5 backdoor'],
+      vi: ['ii m9 NOSTALGIC .95 cycle of fourths', 'IV maj9 CALM .65 floats', 'iii m7 EMOTIONAL .55 steps down', 'II 7 SURPRISE .6 secondary dominant'],
+      vii: ['iii m7 NOSTALGIC .8 down a fifth', 'vi m11 EMOTIONAL .6 falls', 'I maj9 CALM .6 home', 'III 7 SURPRISE .7 to the relative minor'],
+      II: ['V 13 NOSTALGIC .95 secondary dominant resolves', 'ii m9 CALM .5 softens'],
+      VI: ['ii m9 NOSTALGIC .95 turnaround resolves', 'IV maj9 CALM .5 sidesteps'],
+      III: ['vi m11 NOSTALGIC .95 resolves', 'IV maj9 CALM .5 sidesteps'],
+      bII: ['I maj9 CALM .95 tritone resolution', 'vi m11 EMOTIONAL .5 falls'],
+    },
+    minor: {
+      i: ['iv m11 NOSTALGIC .85 sways', 'ii m7b5 NOSTALGIC .8 starts a minor ii–V', 'bVI maj9 EMOTIONAL .7 sinks', 'bIII maj9 CALM .65 relative major', 'bII 7 SURPRISE .5 tritone'],
+      ii: ['V 7b9 NOSTALGIC 1 minor ii–V', 'bIII maj9 CALM .6 steps up', 'i m11 EMOTIONAL .5 falls home', 'bII 7 SURPRISE .65 tritone sub'],
+      bIII: ['bVI maj9 NOSTALGIC .8 down a fifth', 'iv m11 EMOTIONAL .7 rises', 'ii m7b5 CALM .6 to the ii–V', 'iii m7 SURPRISE .5 sidestep'],
+      iv: ['bVII 13 NOSTALGIC .85 the backdoor', 'V 7b9 EMOTIONAL .7 tense', 'i m11 CALM .7 home', 'IV 9 SURPRISE .5 dorian lift'],
+      v: ['i m11 CALM .8 home', 'bVI maj9 EMOTIONAL .7 steps up', 'iv m11 NOSTALGIC .65 falls back', 'V 7b9 SURPRISE .5 turns dominant'],
+      bVI: ['ii m7b5 NOSTALGIC .85 to the ii–V', 'bVII 13 CALM .65 climbs', 'V 7b9 EMOTIONAL .65 tense', 'bII 7 SURPRISE .5 tritone'],
+      bVII: ['bIII maj9 NOSTALGIC .85 to the relative major', 'i m11 CALM .75 home', 'bVI maj9 EMOTIONAL .6 steps down', 'IV 9 SURPRISE .5 dorian lift'],
+      V: ['i m11 CALM .9 resolves', 'bVI maj9 EMOTIONAL .75 deceptive'],
+    },
+  },
+
+  // STRUT: funk. One- and two-chord vamps, 9ths and 13ths, tight 16ths.
+  strut: {
+    major: {
+      I: ['IV maj9 NOSTALGIC .8 the vamp', 'ii m7 CALM .7 walks up', 'vi m7 EMOTIONAL .6 falls', 'bVII 9 SURPRISE .6 funky backdoor'],
+      ii: ['V 13 NOSTALGIC .9 the ii–V vamp', 'iii m7 CALM .6 steps up', 'IV maj9 EMOTIONAL .55 lifts', 'bIII 9 SURPRISE .5 slides'],
+      iii: ['IV maj9 NOSTALGIC .75 climbs', 'vi m7 EMOTIONAL .65 falls', 'ii m7 CALM .6 steps down', 'bIII 9 SURPRISE .5 slides'],
+      IV: ['V 13 NOSTALGIC .85 pushes up', 'I 6/9 CALM .75 home', 'ii m7 EMOTIONAL .6 steps down', 'bVII 9 SURPRISE .6 funky backdoor'],
+      V: ['IV maj9 NOSTALGIC .8 the funk fall', 'I 6/9 CALM .75 home', 'vi m7 EMOTIONAL .65 deceptive', 'bVI 9 SURPRISE .5 borrowed'],
+      vi: ['ii m7 NOSTALGIC .8 down a fifth', 'IV maj9 CALM .7 lifts', 'V 13 EMOTIONAL .6 rises', 'bVII 9 SURPRISE .55 borrowed'],
+      vii: ['iii m7 NOSTALGIC .7 down a fifth', 'I 6/9 CALM .7 home', 'vi m7 EMOTIONAL .6 falls', 'bVII 9 SURPRISE .5 slides'],
+    },
+    minor: {
+      i: ['iv m7 NOSTALGIC .9 the minor vamp', 'bVII 9 CALM .8 lifts', 'bIII maj7 EMOTIONAL .6 relative major', 'v m7 CALM .6 drifts', 'IV 9 SURPRISE .6 dorian IV'],
+      ii: ['V 7 NOSTALGIC .8 minor ii–V', 'bIII maj7 CALM .6 steps up', 'i m9 EMOTIONAL .55 home', 'bII 9 SURPRISE .5 slides'],
+      bIII: ['iv m7 NOSTALGIC .75 rises', 'bVII 9 CALM .75 down a fourth', 'bVI maj7 EMOTIONAL .6 floats', 'IV 9 SURPRISE .5 dorian IV'],
+      iv: ['i m9 NOSTALGIC .9 back to the vamp', 'bVII 9 CALM .75 lifts', 'v m7 EMOTIONAL .6 rises', 'IV 9 SURPRISE .55 dorian lift'],
+      v: ['i m9 CALM .8 home', 'iv m7 NOSTALGIC .7 falls back', 'bVI maj7 EMOTIONAL .65 steps up', 'bII 9 SURPRISE .45 sidesteps'],
+      bVI: ['bVII 9 NOSTALGIC .85 climbs', 'v m7 EMOTIONAL .65 falls', 'i m9 CALM .65 home', 'V 7 SURPRISE .5 tense dominant'],
+      bVII: ['i m9 NOSTALGIC .9 home, vamp on', 'iv m7 CALM .7 falls back', 'bVI maj7 EMOTIONAL .6 steps down', 'IV 9 SURPRISE .5 dorian lift'],
+    },
+  },
+
+  // GOLDEN: sweet soul. Major 7ths, climbing lines, gospel touches.
+  golden: {
+    major: {
+      I: ['iii m7 NOSTALGIC .8 the sweet climb', 'IV maj7 CALM .85 lifts', 'vi m9 EMOTIONAL .75 falls', 'ii m7 CALM .6 walks up', 'III 7 SURPRISE .55 secondary dominant'],
+      ii: ['V 9sus4 NOSTALGIC .9 the ii–V', 'iii m7 CALM .65 climbs', 'IV maj7 EMOTIONAL .55 lifts', '#ii dim7 SURPRISE .5 gospel climb'],
+      iii: ['IV maj7 NOSTALGIC .85 keeps climbing', 'vi m9 EMOTIONAL .7 falls', 'ii m7 CALM .6 steps down', 'III 7 SURPRISE .55 secondary dominant'],
+      IV: ['V 9sus4 NOSTALGIC .85 rises', 'I maj7 CALM .75 amen', 'iii m7 EMOTIONAL .6 steps down', 'iv m6 SURPRISE .65 gospel minor iv'],
+      V: ['I maj7 CALM .9 home', 'vi m9 EMOTIONAL .75 deceptive', 'IV maj7 NOSTALGIC .6 backs off', 'bVI maj7 SURPRISE .5 borrowed'],
+      vi: ['IV maj7 NOSTALGIC .85 vi–IV', 'ii m7 CALM .7 down a fifth', 'V 9sus4 EMOTIONAL .6 rises', 'II 7 SURPRISE .55 secondary dominant'],
+      vii: ['iii m7 NOSTALGIC .75 down a fifth', 'I maj7 CALM .75 home', 'vi m9 EMOTIONAL .6 falls', 'III 7 SURPRISE .55 secondary dominant'],
+    },
+    minor: {
+      i: ['bVI maj7 EMOTIONAL .85 sinks sweet', 'iv m9 NOSTALGIC .8 sways', 'bIII maj7 CALM .75 relative major', 'bVII 9sus4 CALM .6 floats', 'V 7 SURPRISE .5 dominant'],
+      ii: ['V 7 NOSTALGIC .9 minor ii–V', 'bIII maj7 CALM .65 steps up', 'i m9 EMOTIONAL .55 home', 'bII maj7 SURPRISE .45 slides'],
+      bIII: ['bVI maj7 NOSTALGIC .8 down a fifth', 'iv m9 EMOTIONAL .7 rises', 'bVII 9sus4 CALM .7 floats', 'iii dim7 SURPRISE .5 passing'],
+      iv: ['bVII 9sus4 NOSTALGIC .85 lifts', 'i m9 CALM .7 home', 'bIII maj7 EMOTIONAL .65 drifts', '#iv dim7 SURPRISE .55 gospel passing'],
+      v: ['i m9 CALM .8 home', 'bVI maj7 EMOTIONAL .75 steps up', 'iv m9 NOSTALGIC .7 falls back', 'V 7 SURPRISE .5 turns dominant'],
+      bVI: ['bVII 9sus4 NOSTALGIC .85 climbs', 'i m9 CALM .7 home', 'iv m9 EMOTIONAL .65 settles', 'V 7 SURPRISE .5 tense'],
+      bVII: ['bIII maj7 NOSTALGIC .8 relative major', 'i m9 CALM .8 home', 'bVI maj7 EMOTIONAL .65 steps down', 'IV 9 SURPRISE .5 dorian lift'],
+    },
+  },
+
+  // KNOCK: hard hip hop. Dark minor triads, big drops, a menacing half step.
+  knock: {
+    major: {
+      I: ['vi m NOSTALGIC .85 falls to the minor', 'IV maj CALM .7 lifts', 'iii m EMOTIONAL .65 drifts', 'bVI maj SURPRISE .6 dark drop'],
+      ii: ['V maj NOSTALGIC .8 rises', 'vi m EMOTIONAL .6 falls', 'IV maj CALM .6 lifts', 'bII maj SURPRISE .5 slides'],
+      iii: ['vi m NOSTALGIC .8 down a fifth', 'IV maj CALM .65 steps up', 'ii m EMOTIONAL .6 steps down', 'bIII maj SURPRISE .5 slides'],
+      IV: ['I maj CALM .75 home', 'vi m EMOTIONAL .7 falls', 'V maj NOSTALGIC .65 rises', 'iv m SURPRISE .6 borrowed minor iv'],
+      V: ['vi m EMOTIONAL .8 deceptive', 'I maj CALM .7 home', 'IV maj NOSTALGIC .6 backs off', 'bVI maj SURPRISE .5 dark drop'],
+      vi: ['IV maj NOSTALGIC .85 vi–IV', 'iii m EMOTIONAL .6 steps down', 'V maj CALM .6 rises', 'bVI maj SURPRISE .55 slides'],
+      vii: ['iii m NOSTALGIC .7 down a fifth', 'vi m EMOTIONAL .6 falls', 'I maj CALM .6 home', 'bVII maj SURPRISE .5 slides'],
+    },
+    minor: {
+      i: ['bVI maj NOSTALGIC .9 the dark drop', 'iv m EMOTIONAL .75 sinks', 'bVII maj CALM .7 lifts', 'v m CALM .55 drifts', 'bII maj SURPRISE .65 the menacing half step'],
+      ii: ['v m NOSTALGIC .7 falls', 'i m CALM .65 home', 'bVI maj EMOTIONAL .6 sinks', 'bII maj SURPRISE .5 menacing'],
+      bIII: ['bVI maj NOSTALGIC .75 down a fifth', 'iv m EMOTIONAL .7 rises', 'bVII maj CALM .6 sways', 'bII maj SURPRISE .45 menacing'],
+      iv: ['i m NOSTALGIC .85 home', 'bVI maj EMOTIONAL .7 steps up', 'v m CALM .6 rises', 'bII maj SURPRISE .5 menacing'],
+      v: ['i m CALM .8 home', 'bVI maj EMOTIONAL .75 steps up', 'iv m NOSTALGIC .6 falls back', 'bII maj SURPRISE .5 menacing'],
+      bVI: ['bVII maj NOSTALGIC .85 climbs', 'i m CALM .75 home', 'v m EMOTIONAL .65 falls', 'bII maj SURPRISE .5 menacing'],
+      bVII: ['i m NOSTALGIC .9 home, loop it', 'bVI maj EMOTIONAL .7 steps down', 'iv m CALM .6 falls back', 'bII maj SURPRISE .5 menacing'],
+    },
+  },
 };
 
 // The colour each style gives a plain diatonic chord (used by the generic pool
@@ -218,6 +338,11 @@ export function colorChord(c, key, style) {
   if (style === 'cruise') nq = q === '' ? (off === 0 ? 'maj7' : '9') : q === 'm' ? 'm9' : null;
   if (style === 'bloom') nq = q === '' ? (off === 7 ? '13' : 'maj9') : q === 'm' ? 'm11' : null;
   if (style === 'drift') nq = q === '' ? (off === 7 ? 'sus2' : 'maj7') : q === 'm' ? 'm7' : null;
+  if (style === 'boombap') nq = q === '' ? (off === 7 ? '7' : 'maj7') : q === 'm' ? 'm9' : null;
+  if (style === 'dusty') nq = q === '' ? (off === 7 ? '13' : 'maj9') : q === 'm' ? 'm11' : null;
+  if (style === 'strut') nq = q === '' ? (off === 7 ? '13' : off === 0 ? '6/9' : off === 10 ? '9' : 'maj9') : q === 'm' ? (off === 0 ? 'm9' : 'm7') : null;
+  if (style === 'golden') nq = q === '' ? (off === 7 ? '9sus4' : 'maj7') : q === 'm' ? (off === 4 ? 'm7' : 'm9') : null;
+  // knock keeps plain triads: dark and hard.
   return nq ? makeChord(c.root, nq) : cloneChord(c);
 }
 

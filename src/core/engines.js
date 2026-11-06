@@ -27,7 +27,7 @@ export const ENGINES = {
   analog: {
     name: 'ANALOG', method: 'ladder filter', knobs: ['GLIDE', 'SQUELCH'], poly: true,
     presets: [
-      { name: 'Dre Glide', knobs: [0.7, 0.25], p: { wave: 'sine+saw', sub: 0.6, cutoff: 420, decay: 0.9, sustain: 0.8, vib: 4 } },
+      { name: 'Sunset Glide', knobs: [0.7, 0.25], p: { wave: 'sine+saw', sub: 0.6, cutoff: 420, decay: 0.9, sustain: 0.8, vib: 4 } },
       { name: 'Funk Squelch', knobs: [0.08, 0.8], p: { wave: 'saw', sub: 0.3, cutoff: 260, decay: 0.25, sustain: 0.35 } },
       { name: 'Deep Sub', knobs: [0.25, 0.05], p: { wave: 'sine+tri', sub: 0.9, cutoff: 300, decay: 1, sustain: 0.9 } },
       { name: 'Whiny Lead', knobs: [0.55, 0.5], p: { wave: 'square+saw', sub: 0, cutoff: 900, decay: 0.6, sustain: 0.7, vib: 18 } },
@@ -44,7 +44,7 @@ export const ENGINES = {
   pluck: {
     name: 'PLUCK', method: 'plucked string', knobs: ['THUMP', 'MUFFLE'], poly: true,
     presets: [
-      { name: 'Motown Thump', knobs: [0.85, 0.75], p: { body: 0.9, decay: 0.997 } },
+      { name: 'Soul Thump', knobs: [0.85, 0.75], p: { body: 0.9, decay: 0.997 } },
       { name: 'Soul Guitar', knobs: [0.35, 0.3], p: { body: 0.4, decay: 0.996 } },
       { name: 'Funk Chank', knobs: [0.6, 0.85], p: { body: 0.3, decay: 0.99 } },
       { name: 'Nylon Dew', knobs: [0.2, 0.45], p: { body: 0.6, decay: 0.998 } },

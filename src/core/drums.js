@@ -47,6 +47,71 @@ export function generateBoomBap(bpm, rng = Math.random) {
   return p;
 }
 
+/** Which drum feel each style uses. */
+export const STYLE_DRUMS = {
+  nujabes: 'boombap', tyler: 'boombap', cruise: 'boombap', bloom: 'boombap', boombap: 'boombap',
+  motown: 'soul', golden: 'soul', strut: 'funk', dusty: 'jazz', knock: 'knock', drift: 'sparse',
+};
+
+/**
+ * A beat that fits the style and tempo.
+ *   boombap  kick 1 + pushes, snare 2 & 4, 8th hats (see generateBoomBap)
+ *   funk     syncopated kicks, ghost-note snares, 16th hats, open hats on the "and"
+ *   soul     backbeat, tambourine-style 8ths on PERC, kick on 1 and 3 with pickups
+ *   jazz     ride-style "ding, ding-a" on the hats, feathered kick, rim on 4
+ *   knock    half-time snare on beat 3, rolling hats, syncopated kicks
+ *   sparse   just a soft kick, a rim and a few hats
+ */
+export function generateBeat(style, bpm, rng = Math.random) {
+  const flavor = STYLE_DRUMS[style] || 'boombap';
+  if (flavor === 'boombap') return generateBoomBap(bpm, rng);
+  const p = emptyPattern();
+  const chance = (x) => rng() < x;
+  const pick = (arr) => arr[Math.floor(rng() * arr.length)];
+  if (flavor === 'funk') {
+    p.kick[0] = 2;
+    for (const st of pick([[3, 6, 10], [2, 7, 10, 14], [3, 8, 11], [6, 9, 10, 15]])) p.kick[st] = 2;
+    p.snare[4] = 2; p.snare[12] = 2;
+    for (const g of [1, 7, 9, 10, 15]) if (chance(0.45)) p.snare[g] = 1;
+    for (let st = 0; st < 16; st++) p.hat[st] = st % 4 === 0 ? 2 : 1;
+    p.hat[6] = 0; p.open[6] = 2;
+    if (chance(0.6)) { p.hat[14] = 0; p.open[14] = 2; }
+    if (chance(0.5)) p.perc[pick([3, 11, 13])] = 1;
+  } else if (flavor === 'soul') {
+    p.kick[0] = 2; p.kick[8] = 2;
+    if (chance(0.6)) p.kick[pick([6, 7, 14, 15])] = 1;
+    p.snare[4] = 2; p.snare[12] = 2;
+    for (let st = 0; st < 16; st += 2) p.hat[st] = st % 4 === 0 ? 2 : 1;
+    for (let st = 0; st < 16; st += 2) p.perc[st] = st % 4 === 2 ? 2 : 1; // tambourine
+    if (chance(0.4)) p.snare[15] = 1;
+  } else if (flavor === 'jazz') {
+    // Ride pattern on the hats: beats 1-4 with the swung "a" before 2 and 4.
+    for (const st of [0, 4, 7, 8, 12, 15]) p.hat[st] = st % 4 === 0 ? 2 : 1;
+    p.kick[0] = 1; p.kick[8] = 1;
+    if (chance(0.5)) p.kick[pick([6, 10, 14])] = 1;
+    p.rim[12] = 2;
+    if (chance(0.5)) p.rim[4] = 1;
+    for (const g of [3, 10, 11]) if (chance(0.3)) p.snare[g] = 1;
+    p.open[pick([6, 14])] = chance(0.4) ? 1 : 0;
+  } else if (flavor === 'knock') {
+    p.kick[0] = 2;
+    for (const st of pick([[3, 10], [6, 7, 11], [3, 6, 14], [10, 11, 15]])) p.kick[st] = 2;
+    p.snare[8] = 2; // half time: the snare lands on beat 3
+    if (chance(0.4)) p.snare[15] = 1;
+    for (let st = 0; st < 16; st += 2) p.hat[st] = 2;
+    // Hat rolls: runs of quick soft hits
+    for (const r of pick([[13, 14, 15], [5, 7], [11, 13, 15], [6, 7, 14, 15]])) p.hat[r] = 1;
+    if (chance(0.5)) p.open[pick([4, 12])] = 1;
+    if (chance(0.5)) p.perc[pick([7, 11, 15])] = 1;
+  } else { // sparse
+    p.kick[0] = 1;
+    if (chance(0.5)) p.kick[10] = 1;
+    p.rim[12] = 1;
+    for (const st of [4, 8, 14]) if (chance(0.5)) p.hat[st] = 1;
+  }
+  return p;
+}
+
 /** Pick a tempo inside a range and a pattern that fits it. */
 export function generateForRange(lo, hi, rng = Math.random) {
   const bpm = Math.round(lo + rng() * (hi - lo));

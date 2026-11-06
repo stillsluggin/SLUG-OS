@@ -22,7 +22,7 @@ import { suggestNext, STYLE_IDS, STYLE_LABELS } from './nextChord.js';
 import { ENGINES, ENGINE_IDS, engineSlot } from './engines.js';
 import { PLAYER_IDS, PLAYER_NAMES, MODES, HARMONY_MODES, BASS_MODES, harmonyEvents, bassEvents, melodyEvents, soloEvents, plateNotes } from './players.js';
 import { bassRoot } from './bass.js';
-import { drumEvents, generateBoomBap, LANES } from './drums.js';
+import { drumEvents, generateBoomBap, generateBeat, LANES } from './drums.js';
 import { createSeq, seqPosition, seqChordAt, hasChords, autoFill } from './chordSeq.js';
 import { KEYS, KNOBS, BEND_INFO } from './controls.js';
 import { createTrail } from './trail.js';
@@ -60,7 +60,7 @@ export function createSession(out, { rng = Math.random } = {}) {
     seq: createSeq(),
     seqIndex: 0,
     seqSel: null,
-    drums: { pattern: generateBoomBap(88, rng), range: [80, 95] },
+    drums: { pattern: generateBoomBap(88, rng), range: [80, 95], auto: true }, // auto: the beat was generated, not edited
     keySelect: false,
     pressed: new Set(),
     buttonsHeld: new Set(),
@@ -360,6 +360,7 @@ export function createSession(out, { rng = Math.random } = {}) {
         const st16 = ((Math.round(beatNow() * 4) % 16) + 16) % 16;
         const row = state.drums.pattern[lanes[pos]];
         row[st16] = Math.max(row[st16], pos >= 6 ? 1 : 2);
+        state.drums.auto = false;
         passDirty = true;
         emit();
       }
@@ -687,7 +688,12 @@ export function createSession(out, { rng = Math.random } = {}) {
       case 'human': state.human = v; break;
       case 'style': {
         const s = STYLE_IDS[Math.min(STYLE_IDS.length - 1, Math.floor(v * STYLE_IDS.length))];
-        if (s !== state.style) { state.style = s; refreshSuggestions(); }
+        if (s !== state.style) {
+          state.style = s;
+          refreshSuggestions();
+          // A generated beat follows the style; a beat you edited stays.
+          if (state.drums.auto) state.drums.pattern = generateBeat(s, state.tempo, rng);
+        }
         break;
       }
       case 'a': case 'b':
@@ -715,10 +721,11 @@ export function createSession(out, { rng = Math.random } = {}) {
     emit();
   }
 
-  function setPattern(pattern) { state.drums.pattern = pattern; emit(); }
+  function setPattern(pattern) { state.drums.pattern = pattern; state.drums.auto = false; emit(); }
   function toggleDrumStep(lane, s) {
     const row = state.drums.pattern[lane];
     row[s] = (row[s] + 1) % 3;
+    state.drums.auto = false; // your beat now: style changes won't replace it
     emit();
   }
   function generateDrums({ useRange = false } = {}) {
@@ -726,8 +733,9 @@ export function createSession(out, { rng = Math.random } = {}) {
       const [lo, hi] = state.drums.range;
       state.tempo = Math.round(lo + rng() * (hi - lo));
     }
-    state.drums.pattern = generateBoomBap(state.tempo, rng);
-    toast(`BOOM BAP · ${state.tempo} BPM`);
+    state.drums.pattern = generateBeat(state.style, state.tempo, rng);
+    state.drums.auto = true;
+    toast(`NEW BEAT · ${STYLE_LABELS[state.style]} · ${state.tempo} BPM`);
     emit();
   }
 

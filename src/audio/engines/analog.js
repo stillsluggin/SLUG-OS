@@ -2,7 +2,7 @@
 // Method: saw / square / triangle / sine oscillators + a sub oscillator into a
 // 24 dB low-pass (two cascaded resonant stages, ladder-style) with its own
 // envelope, then an amp envelope. Mono players glide between notes.
-//   GLIDE    portamento time (Dre glide bass at the top)
+//   GLIDE    portamento time (long sliding G-funk bass at the top)
 //   SQUELCH  filter envelope depth + resonance (funk squelch at the top)
 
 import { mtof, adsr, makeVoice, holdAt } from '../util.js';

@@ -59,7 +59,7 @@ export const KNOBS = [
   { id: 'tempo', label: 'TEMPO' },
   { id: 'swing', label: 'SWING' },
   { id: 'human', label: 'HUMAN' },
-  { id: 'style', label: 'STYLE', steps: 6 },
+  { id: 'style', label: 'STYLE', steps: 11 },
   { id: 'a', label: 'A' },
   { id: 'b', label: 'B' },
   { id: 'level', label: 'LEVEL' },
