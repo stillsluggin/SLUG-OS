@@ -85,7 +85,9 @@ export function bandPage({ session }) {
   capBtn.title = 'Capture what you just played into the sequencer ( / )';
   const undoBtn = button('UNDO', () => session.undo());
   const keyBtn = btn('key', 'KEY');
-  const recBtn = btn('rec', 'REC');
+  const recMode = h('small.rm');
+  const recBtn = btn('rec', [h('span', { text: 'REC' }), recMode]);
+  recBtn.classList.add('recbtn');
   const playerBtn = btn('player', 'PLAYER ▸');
   const panel = win('Controls', h('div.panel', {}, h('div.knobs', {}, knobs.map((k) => k.el)), h('div.buttons.six', {}, latchBtn, keyBtn, recBtn, capBtn, undoBtn, playerBtn)), { cls: 'span' });
 
@@ -144,6 +146,7 @@ export function bandPage({ session }) {
     undoBtn.disabled = !session.canUndo;
     keyBtn.classList.toggle('on', st.keySelect);
     recBtn.classList.toggle('hot', st.seq.rec);
+    recMode.textContent = st.recMode;
   }
 
   return { el, update, flash };

@@ -303,3 +303,50 @@ test('session capture: stopped jam -> sequencer + parts, parts play back, undo',
   assert.equal(s.state.parts.bass.length, 0);
   assert.equal(s.state.seq.steps.filter(Boolean).length, 0);
 });
+
+test('live recording: OVERDUB layers, REPLACE wipes from your first note, UNDO per pass', () => {
+  const out = fakeOut();
+  let now = 0;
+  out.now = () => now;
+  const s = createSession(out, { rng });
+  const sd = s.stepDur();
+  const plate = KEYS.filter((x) => x.section === 'plate').map((x) => x.index);
+  s.focus(1); // MELODY (starts muted)
+  s.setPlaying(true);
+  s.setRec(true);
+  assert.equal(s.state.recMode, 'OVERDUB');
+  // Run the clock; `hits` = { step: plateKey } notes to play at those steps (held 2 steps).
+  const run = (from, to, hits = {}) => {
+    for (let n = from; n < to; n++) {
+      now = n * sd;
+      s.step(n, n * sd);
+      if (hits[n] != null) s.keyDown(plate[hits[n]]);
+      if (hits[n - 2] != null) s.keyUp(plate[hits[n - 2]]);
+    }
+  };
+  const loopSteps = s.partLoopBeats() * 4; // 16 beats = 64 steps
+  run(0, loopSteps, { 0: 0, 16: 2 });
+  assert.equal(s.state.parts.melody.length, 2, 'pass 1: two notes');
+  assert.equal(s.state.players[1].mode, 'FREE', 'muted player becomes FREE');
+  run(loopSteps, loopSteps * 2, { [loopSteps + 32]: 4 });
+  assert.equal(s.state.parts.melody.length, 3, 'pass 2 overdubs on top');
+  // The part plays back next loop
+  out.log.length = 0;
+  run(loopSteps * 2, loopSteps * 3);
+  assert.equal(out.log.filter((e) => e[0] === 'play' && e[1] === 'melody').length, 3);
+  // UNDO takes back the last pass only
+  assert.ok(s.undo());
+  assert.equal(s.state.parts.melody.length, 2);
+  // REPLACE: one new note; after a full loop only it is left
+  s.toggleRecMode();
+  run(loopSteps * 3, loopSteps * 4, { [loopSteps * 3 + 8]: 1 });
+  run(loopSteps * 4, loopSteps * 5);
+  assert.deepEqual(s.state.parts.melody.map((n) => n.pos), [2]);
+  // REPLACE does nothing until you play: a quiet loop keeps the part
+  s.setRec(false); s.setRec(true);
+  run(loopSteps * 5, loopSteps * 6);
+  assert.equal(s.state.parts.melody.length, 1);
+  // UNDO the replace pass brings the old notes back
+  assert.ok(s.undo());
+  assert.equal(s.state.parts.melody.length, 2);
+});

@@ -74,6 +74,21 @@ newest part. **UNDO** takes it back. A player with a part plays your notes
 instead of improvising; **CLEAR** on the SEQ page removes a part. Keys: `/`
 capture, `Backspace` undo.
 
+### Recording parts live: OVERDUB / REPLACE
+
+Press **REC** (BAND page or Parts on SEQ), start the band, tap a snail
+(MELODY, BASS or SOLOIST) and play the strum plate. Your notes go into that
+player's part, snapped to 16ths. While recording, the top bar shows a red
+**● OVERDUB** or **● REPLACE** badge (tap it to switch; the BAND page REC
+button shows the mode too).
+
+- **OVERDUB** (default): new notes layer on top, loop after loop.
+- **REPLACE**: from your first new note, the old part is wiped as the loop
+  goes by. Nothing is erased until you play.
+- **UNDO** takes back the last loop you recorded (or the one in progress).
+
+A muted player you record into switches to FREE so you hear your part.
+
 ### The Slug Band
 
 HARMONY (chords: COMP, SUSTAIN, STRUM, ARP), MELODY (short motifs with call

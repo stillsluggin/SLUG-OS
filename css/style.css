@@ -209,6 +209,14 @@ img.px { image-rendering: pixelated; image-rendering: crisp-edges; display: bloc
 .buttons.six { grid-template-columns: repeat(6, 1fr); gap: 3px; }
 .buttons.six .bevel { padding: 4px 2px; font-size: 8px; letter-spacing: -0.3px; }
 .bevel.cap { background: var(--dew); }
+.recbtn { flex-direction: column; gap: 1px; }
+.recbtn small { font-size: 6px; opacity: .8; letter-spacing: 0; }
+.menubar .logo { white-space: nowrap; }
+.menubar .recpill { background: var(--rose); color: var(--cream); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; text-align: center; animation: recblink 1s steps(2) infinite; }
+@keyframes recblink { 50% { background: #b85547; } }
+.seg { display: inline-flex; }
+.seg .bevel + .bevel { margin-left: -2px; }
+.modehelp { margin: 0; flex: 1; min-width: 140px; }
 .parts { display: flex; flex-direction: column; gap: 4px; }
 .part { display: flex; align-items: center; gap: 5px; }
 .part .pn { font-family: var(--px); font-size: 8px; width: 52px; }

@@ -52,6 +52,8 @@ function toast(text) {
 }
 
 const trailFill = h('i');
+const recPill = h('span.pill.recpill', { title: 'Tap to switch OVERDUB / REPLACE' });
+tap(recPill, () => session.toggleRecMode());
 const trailSnail = spriteImg('slug', 2);
 const keyPill = h('span.pill');
 const bpmPill = h('span.pill');
@@ -63,7 +65,7 @@ tap(keyPill, () => { session.buttonDown('key'); session.buttonUp('key'); });
 tap(bpmPill, () => setPage('drums'));
 const menubar = h('div.menubar', {},
   h('span.logo', {}, spriteImg('snail', 1), 'SLUG OS'), keyPill, bpmPill,
-  h('span.trail', {}, trailFill, trailSnail), clickBtn, playBtn);
+  h('span.trail', {}, trailFill, trailSnail), recPill, clickBtn, playBtn);
 
 const pages = { band: bandPage(app), seq: seqPage(app), drums: drumsPage(app), sampler: samplerPage(app), fx: fxPage(app) };
 const pagesEl = h('div.pages', {}, ...Object.values(pages).map((p) => p.el));
@@ -97,6 +99,10 @@ function renderMenubar() {
   playBtn.append(spriteImg(m.playing ? 'stop' : 'play', 2), m.playing ? 'STOP' : 'PLAY');
   playBtn.classList.toggle('on', m.playing);
   clickBtn.classList.toggle('on', st.metronome);
+  // While recording, the trail makes way for a clear REC badge showing the mode.
+  recPill.style.display = st.seq.rec ? '' : 'none';
+  recPill.textContent = `● ${st.recMode}`;
+  trailFill.parentElement.style.display = st.seq.rec ? 'none' : '';
 }
 
 function renderTrail() {

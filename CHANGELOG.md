@@ -5,6 +5,11 @@ All notable changes to Slug OS, newest first. Written for players, not programme
 ## Unreleased (branch claude/history-capture)
 
 ### Added
+- **OVERDUB / REPLACE**: with REC on and the band playing, notes you play on
+  MELODY, BASS or SOLOIST record straight into their part. OVERDUB (default)
+  layers each loop on top; REPLACE wipes the old part as the loop passes, but
+  only once you start playing. Red ● OVERDUB / ● REPLACE badge in the top bar
+  while recording (tap to switch). UNDO takes back the last recorded loop.
 - **CAPTURE**: Slug OS always listens. Tap CAPTURE and the chords you just
   played land in the chord sequencer (timing snapped to the grid and BPM), and
   notes you played on MELODY, BASS or SOLOIST land in that player's new

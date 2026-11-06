@@ -97,6 +97,16 @@ await page.click('text=HOLD'); await page.waitForTimeout(400);
 await page.click('.combo >> nth=2'); await page.waitForTimeout(100);
 R.combo = await page.evaluate(() => `${window.__slug.app.xy.x}+${window.__slug.app.xy.y}`);
 await page.screenshot({ path: outDir + 'xy.png' });
+// live recording into a part (band is playing)
+await page.evaluate(() => { const s = window.__slug.session; s.focus(3); s.setRec(true); });
+await page.waitForTimeout(100);
+R.recPill = await page.textContent('.recpill');
+await page.evaluate(async () => { const s = window.__slug.session; for (const i of [12, 14, 16]) { s.keyDown(i); await new Promise((r) => setTimeout(r, 180)); s.keyUp(i); } });
+R.liveNotes = await page.evaluate(() => window.__slug.session.state.parts.soloist.length);
+await page.tap('.recpill'); await page.waitForTimeout(50);
+R.recPill2 = await page.textContent('.recpill');
+await page.evaluate(() => { const s = window.__slug.session; s.undo(); s.setRec(false); s.toggleRecMode(); });
+R.afterPassUndo = await page.evaluate(() => window.__slug.session.state.parts.soloist.length);
 await page.evaluate(() => window.__slug.session.seqAuto());
 await page.click('.dock .bevel:nth-child(2)'); await page.waitForTimeout(1500);
 await page.screenshot({ path: outDir + 'seq.png' });

@@ -228,6 +228,17 @@ real phone.
 - The XY pad sits on the master bus, so it affects the band, drums, sampler
   and loops together. The metronome click bypasses it.
 
+### Recording, capture and history (notes)
+- `core/trail.js` = Chord History; `core/capture.js` = capture + part helpers.
+  The session logs chords and strum-plate notes in beats at all times
+  (segments restart when the band starts/stops). Parts live in
+  `state.parts` (melody, bass, soloist), positions in beats inside
+  `partLoopBeats()` (the chord sequencer's loop, else 16 beats).
+- One UNDO stack holds snapshots of the sequencer + parts for CAPTURE, CLEAR
+  and each recorded pass (one pass = one loop with REC on).
+- A player with a part plays the part instead of improvising.
+- REPLACE only starts wiping once you play; switching mode starts a new "take".
+
 ### Status
 Built: features 1–9 (see CHANGELOG.md). Not built yet: the "Later" list
 (full song saving, age/vinyl knob, in-app recording/resampling, sampler page B).

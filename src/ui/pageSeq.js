@@ -36,6 +36,10 @@ export function seqPage({ session }) {
   // ---- Parts: what's been recorded for MELODY, BASS and SOLOIST
   const capBtn = button('CAPTURE', () => session.capture(), 'cap');
   const undoBtn = button('UNDO', () => session.undo());
+  const partRec = button('● REC', () => session.setRec(!st.seq.rec));
+  const odBtn = button('OVERDUB', () => { if (st.recMode !== 'OVERDUB') session.toggleRecMode(); }, 'sm');
+  const rpBtn = button('REPLACE', () => { if (st.recMode !== 'REPLACE') session.toggleRecMode(); }, 'sm');
+  const modeHelp = h('p.help.modehelp');
   const loopLab = h('span.lab');
   const lanes = PART_PLAYERS.map((id) => {
     const cells = Array.from({ length: 16 }, () => h('i'));
@@ -45,9 +49,10 @@ export function seqPage({ session }) {
     return { id, row, cells, count, clear };
   });
   const partsWin = win('Parts', [
-    h('div.row', {}, capBtn, undoBtn, h('span.grow'), loopLab),
+    h('div.row', {}, capBtn, undoBtn, partRec, h('span.grow'), loopLab),
+    h('div.row', { style: 'margin-top:6px' }, h('span.lab', { text: 'RECORD' }), h('span.seg', {}, odBtn, rpBtn), modeHelp),
     h('div.parts', { style: 'margin-top:6px' }, lanes.map((l) => l.row)),
-    h('p.help', { text: 'Slug OS is always listening. Play some chords (and notes on MELODY, BASS or SOLOIST), then tap CAPTURE: it drops them into the sequencer and the parts, snapped to the beat. UNDO takes it back. A player with a part plays your notes instead of improvising.' }),
+    h('p.help', { text: 'To record a part live: press ● REC, start the band, focus a snail and play the strum plate. UNDO takes back the last loop you recorded. Slug OS is also always listening. Play some chords (and notes on MELODY, BASS or SOLOIST), then tap CAPTURE: it drops them into the sequencer and the parts, snapped to the beat. UNDO takes it back. A player with a part plays your notes instead of improvising.' }),
   ]);
   const el = h('div.page', {}, win('Chord Sequencer', body), partsWin);
 
@@ -55,6 +60,10 @@ export function seqPage({ session }) {
     const loop = session.partLoopBeats();
     loopLab.textContent = `LOOP ${loop / 4 >= 1 ? `${loop / 4} BAR${loop / 4 > 1 ? 'S' : ''}` : `${loop} BEATS`}`;
     undoBtn.disabled = !session.canUndo;
+    partRec.classList.toggle('hot', st.seq.rec);
+    odBtn.classList.toggle('on', st.recMode === 'OVERDUB');
+    rpBtn.classList.toggle('on', st.recMode === 'REPLACE');
+    modeHelp.textContent = st.recMode === 'OVERDUB' ? 'new notes layer on top, loop after loop' : 'from your first note, the old part is wiped as the loop goes by';
     for (const l of lanes) {
       const notes = st.parts[l.id];
       l.count.textContent = notes.length ? `${notes.length}♪` : '—';

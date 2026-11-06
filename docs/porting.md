@@ -46,6 +46,7 @@ what fits and what doesn't.
 | Sampler pitch / stretch (WSOLA, beats) | ❌ | Offline rendering of whole samples; browser-only with the sampler |
 | XY Effects Pad | ⚠️ | No touch screen on the FM-1. Could map X/Y to two encoders; filter, isolator, delay, stutter and crusher are cheap; beat repeat and tape stop need a RAM buffer (~2 s ≈ 350 KB at 44.1 kHz stereo 16-bit: too much, use mono or shorter) |
 | Metronome | ✅ | Trivial |
+| Chord History, CAPTURE, parts, OVERDUB/REPLACE | ✅ | Small fixed arrays (e.g. 64 history chords, 256 logged events, 64 notes per part). BACK/FORWARD on OCT- / OCT+, CAPTURE on SAVE |
 | Web MIDI / computer keyboard | n/a | The hardware keys and TRS/USB MIDI replace them |
 
 ## Module map
