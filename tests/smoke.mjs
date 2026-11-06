@@ -71,30 +71,66 @@ for (const pi of [0, 1, 2, 3]) {
 for (let m = 0; m < 6; m++) await page.evaluate(() => window.__slug.session.cycleFeel(2));
 // harmony modes
 for (let m = 0; m < 4; m++) { await page.evaluate(() => window.__slug.session.cycleFeel(0)); R[`harm${m}`] = await level(page, 400); }
-// XY effects pad (band still playing)
+// SHELL SHOCK (band still playing)
 await page.click('.dock .bevel:nth-child(5)'); await page.waitForTimeout(200);
+await page.evaluate(() => window.__slug.app.audio.master.xy.ready);
+R.worklet = await page.evaluate(() => window.__slug.app.audio.master.xy.worklet);
 R.xyBase = await level(page, 400);
 const pad = await page.locator('.xypad').boundingBox();
-const drag = async (fx, fy, ms = 500) => { await page.mouse.move(pad.x + pad.width * fx, pad.y + pad.height * (1 - fy)); await page.mouse.down(); await page.waitForTimeout(80); const l = await level(page, ms); await page.mouse.up(); return l; };
+const at = (fx, fy) => [pad.x + pad.width * fx, pad.y + pad.height * (1 - fy)];
+const drag = async (fx, fy, ms = 500) => { await page.mouse.move(...at(fx, fy)); await page.mouse.down(); await page.waitForTimeout(80); const l = await level(page, ms); await page.mouse.up(); return l; };
+const setFx = (x, y) => page.evaluate(([x, y]) => { const a = window.__slug.app; a.xy.x = x; a.xy.y = y; window.__slug.pages.fx.apply(); window.__slug.pages.fx.update(); }, [x, y]);
+// every effect, on X and on Y
 R.xy = {};
-const effects = ['filter', 'isolator', 'looper', 'phaser', 'flanger', 'delay', 'tapestop', 'stutter', 'crusher'];
+const effects = await page.evaluate(async () => (await import('/src/core/xy.js')).XY_EFFECTS);
 for (let i = 0; i < effects.length; i++) {
-  await page.evaluate(([x, y]) => { const a = window.__slug.app; a.xy.x = x; a.xy.y = y; window.__slug.pages.fx.apply(); window.__slug.pages.fx.update(); }, [effects[i], effects[(i + 4) % effects.length]]);
-  R.xy[`${effects[i]}+${effects[(i + 4) % effects.length]}`] = await drag(0.8, 0.8, 400);
+  const y = effects[(i + 7) % effects.length];
+  await setFx(effects[i], y);
+  R.xy[`${effects[i]}+${y}`] = await drag(0.75, 0.75, 350);
+  await page.waitForTimeout(150);
 }
-await page.evaluate(() => { const a = window.__slug.app; a.xy.x = 'tapestop'; a.xy.y = 'filter'; window.__slug.pages.fx.apply(); });
-await page.mouse.move(pad.x + pad.width * 0.97, pad.y + pad.height * 0.97); await page.mouse.down();
-await page.waitForTimeout(1200);
-R.tapeStopEnd = await level(page, 300); // fast stop (x=1, ~0.4 s): silent by now
-await page.mouse.up();
+R.xyBroken = Object.entries(R.xy).filter(([, v]) => v < 0).map(([k]) => k);
+// the loader: tap X, pick TAPE STOP from the list
+await page.tap('.loader >> nth=0');
+R.loaderRows = await page.$$eval('.fxrow', (els) => els.length);
+await page.tap('.fxrow:has-text("TAPE STOP")');
+R.loadedX = await page.evaluate(() => window.__slug.app.xy.x);
+await setFx('tapestop', 'tapestop');
+// expressive tape stop: just past the start = slow wind-down, far end = instant
+await page.mouse.move(...at(0.12, 0.03)); await page.mouse.down();
 await page.waitForTimeout(500);
+R.tapeSlowAfterHalfSecond = await level(page, 200);
+await page.mouse.up(); await page.waitForTimeout(1200);
+await page.mouse.move(...at(0.97, 0.03)); await page.mouse.down();
+await page.waitForTimeout(500);
+R.tapeStopEnd = await level(page, 300);
+// drag back towards the start: it spins back up
+await page.mouse.move(...at(0.3, 0.03), { steps: 10 }); await page.mouse.move(...at(0.02, 0.03), { steps: 10 });
+await page.waitForTimeout(700);
+R.tapeBackUp = await level(page, 300);
+await page.mouse.up();
+await page.waitForTimeout(600);
 R.snappedBack = await page.evaluate(() => window.__slug.app.xy.ax === 0 && window.__slug.app.xy.ay === 0);
 R.afterTapeStop = await level(page, 600);
 await page.click('text=HOLD');
 await drag(0.5, 0.5, 100); await page.waitForTimeout(400);
 R.holdKeeps = await page.evaluate(() => window.__slug.app.xy.ax > 0.4);
 await page.click('text=HOLD'); await page.waitForTimeout(400);
-await page.click('.combo >> nth=2'); await page.waitForTimeout(100);
+// auto-named combos: save, rename, load, delete
+await setFx('lofi', 'wash');
+R.comboName = await page.textContent('.comboname');
+const before = await page.evaluate(() => window.__slug.app.xy.combos.length);
+await page.tap('.namerow .bevel.hot');
+R.saved = (await page.evaluate(() => window.__slug.app.xy.combos.length)) - before;
+page.once('dialog', (d) => d.accept('My Mossy Thing'));
+await page.tap('text=EDIT');
+await page.locator('.comboedit').last().locator('.bevel.sm').first().tap();
+await page.waitForTimeout(100);
+R.renamed = await page.evaluate(() => window.__slug.app.xy.combos.at(-1).name);
+await page.locator('.comboedit').last().locator('.bevel.sm').last().tap();
+R.afterDelete = (await page.evaluate(() => window.__slug.app.xy.combos.length)) - before;
+await page.tap('text=DONE');
+await page.tap('.combo >> nth=1'); await page.waitForTimeout(100);
 R.combo = await page.evaluate(() => `${window.__slug.app.xy.x}+${window.__slug.app.xy.y}`);
 await page.screenshot({ path: outDir + 'xy.png' });
 // live recording into a part (band is playing)

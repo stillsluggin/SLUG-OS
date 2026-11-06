@@ -150,15 +150,27 @@ owner records its audio output into hardware samplers.
      speed change together), and pitch-shift that keeps the timing.
    - Several STRETCH/WARP algorithms: repitch, beats-style for drums,
      smooth-style for melodic material, with warp-to-BPM.
-8. **XY Effects Pad** — a big, minimal touch grid, like a DJ effects unit.
+8. **SHELL SHOCK (XY Effects Pad)** — a big, minimal touch grid, like a DJ
+   effects unit (a playful nod to the classic Kaoss Pad), in the retro snail
+   style, with a shell / slime-trail cursor that follows the finger.
    - X axis = one effect, Y axis = another effect, layered together. One drag
      plays both.
-   - The owner chooses which effect goes on each axis: filter, isolator
-     (3-band kill EQ), looper/beat repeat, phaser, flanger, delay, tape stop,
-     stutter, bit crusher.
-   - Each axis controls just one "amount". Effects snap back smoothly on
-     release, with a HOLD option.
-   - Save a few favourite X/Y pairings as one-tap combos.
+   - Effect loader, no fixed presets: tap X or Y to open a scrolling list of
+     every built-in effect; one tap to open, one tap to choose. Any effect on
+     either axis, in any combination.
+   - Effects (one "amount" per axis): filter, isolator (3-band kill EQ),
+     looper/beat repeat, phaser, flanger, delay, tape stop, stutter, bit
+     crusher, lo-fi (sample-rate + bit reduction + a little noise), vinyl
+     wobble, tape saturation, reverb wash, chorus, ring mod, pitch dive,
+     gate/trance chop, reverse-repeat.
+   - TAPE STOP is expressive: position on its axis sets how fast the tape
+     slows, from a slow wind-down to an instant stop; dragging back brings it
+     smoothly back up to speed.
+   - Easy to add new effects later.
+   - Auto-named combos: every X/Y pairing gets a fun generated name in the
+     Slugz/nature/retro-tech spirit; SAVE keeps it (renamable); saved combos
+     are one-tap buttons; unlimited.
+   - Effects snap back smoothly on release, with a HOLD option.
 9. **Metronome** — a simple click set by BPM, easy to switch on and off.
 
 ### Later (leave room)
@@ -225,8 +237,14 @@ real phone.
 - Stretch/pitch processing in the sampler is done offline in JavaScript
   (rendered once per setting, then cached), because Web Audio has no built-in
   time-stretch. Long samples take a moment to render.
-- The XY pad sits on the master bus, so it affects the band, drums, sampler
-  and loops together. The metronome click bypasses it.
+- SHELL SHOCK (the XY pad) sits on the master bus, so it affects the band,
+  drums, sampler and loops together. The metronome click bypasses it.
+- Adding a SHELL SHOCK effect = one entry in `src/core/xy.js` (`SHELL_EFFECTS`:
+  label, hint, name words) + one maker in `src/audio/xyfx.js` (`MAKERS`). A
+  test checks every listed effect has a maker. LO-FI, PITCH DIVE and REVERSE
+  REPEAT run in an AudioWorklet (`src/audio/fxWorklet.js`) with simpler
+  fallbacks if the browser lacks it.
+- Combo names only use generic words (no brand or product names).
 
 ### Recording, capture and history (notes)
 - `core/trail.js` = Chord History; `core/capture.js` = capture + part helpers.

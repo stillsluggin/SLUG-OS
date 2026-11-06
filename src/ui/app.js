@@ -34,7 +34,7 @@ const app = {
   session, out, audio: null, library: null,
   pads: createPads(),
   kitId: 'builtin',
-  xy: { x: 'filter', y: 'delay', hold: false, ax: 0, ay: 0, combos: DEFAULT_COMBOS.map((c) => ({ ...c })) },
+  xy: { x: 'filter', y: 'delay', hold: false, ax: 0, ay: 0, roll: 0, combos: DEFAULT_COMBOS.map((c) => ({ ...c })) },
   toast,
   now: () => getContext()?.currentTime ?? 0,
 };
@@ -72,7 +72,7 @@ const pagesEl = h('div.pages', {}, ...Object.values(pages).map((p) => p.el));
 const kb = keybed(session);
 const keyzone = h('div.keyzone', {}, kb.el);
 const dockBtns = {};
-const dock = h('div.dock', {}, ...[['band', 'BAND', 'iconBand'], ['seq', 'SEQ', 'iconSeq'], ['drums', 'DRUMS', 'iconDrums'], ['sampler', 'SAMPLER', 'iconSampler'], ['fx', 'XY FX', 'iconFx']].map(([id, label, icon]) => {
+const dock = h('div.dock', {}, ...[['band', 'BAND', 'iconBand'], ['seq', 'SEQ', 'iconSeq'], ['drums', 'DRUMS', 'iconDrums'], ['sampler', 'SAMPLER', 'iconSampler'], ['fx', 'SHELL SHOCK', 'iconFx']].map(([id, label, icon]) => {
   const b = button([spriteImg(icon, 2), label], () => setPage(id));
   dockBtns[id] = b;
   return b;
@@ -248,7 +248,7 @@ app.stopMic = async (r) => {
   return { sampleId, name: 'mic take', duration: buffer.duration, buffer };
 };
 
-app.saveXY = () => db.setKV('xy', { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, combos: app.xy.combos });
+app.saveXY = () => db.setKV('xy', { x: app.xy.x, y: app.xy.y, hold: app.xy.hold, roll: app.xy.roll, combos: app.xy.combos });
 
 let padsTimer;
 app.savePads = () => { clearTimeout(padsTimer); padsTimer = setTimeout(() => db.setKV('pads', app.pads), 300); };

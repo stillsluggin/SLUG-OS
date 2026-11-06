@@ -1,35 +1,70 @@
-// pageFx.js — the XY Effects Pad: one drag plays two effects at once.
+// pageFx.js — SHELL SHOCK: the XY effects pad. One drag plays two effects.
+// Tap X or Y to load any effect from the list; Slug OS names every pairing.
 
 import { h, win, button, tap } from './widgets.js';
 import { spriteImg } from './sprites.js';
-import { XY_EFFECTS, XY_LABELS, XY_HINTS, snapBack } from '../core/xy.js';
+import { SHELL_EFFECTS, XY_LABELS, XY_HINTS, comboName, snapBack } from '../core/xy.js';
 
 export function fxPage(app) {
-  const s = app.xy; // { x, y, hold, combos, ax, ay }
+  const s = app.xy; // { x, y, hold, combos, ax, ay, roll }
+  s.roll = s.roll || 0;
   const fx = () => app.audio && app.audio.master.xy;
 
-  // ---- axis pickers
-  const pick = (axis, dir) => {
-    const list = XY_EFFECTS;
-    s[axis] = list[(list.indexOf(s[axis]) + dir + list.length) % list.length];
-    if (s[axis] === s[axis === 'x' ? 'y' : 'x']) s[axis] = list[(list.indexOf(s[axis]) + dir + list.length) % list.length];
+  // ---- effect loaders (one tap to open, one tap to choose)
+  const loadX = h('button.bevel.loader', { type: 'button' });
+  const loadY = h('button.bevel.loader', { type: 'button' });
+  tap(loadX, () => openLoader('x'));
+  tap(loadY, () => openLoader('y'));
+
+  const list = h('div.fxlist');
+  const loaderTitle = h('b');
+  const loader = h('div.loader-wrap', {},
+    h('div.win.loader-win', {},
+      h('div.win-title', {}, h('span.box'), loaderTitle, button('✕', () => closeLoader(), 'sm')),
+      h('div.win-body', {}, list)));
+  loader.addEventListener('pointerdown', (ev) => { if (ev.target === loader) closeLoader(); });
+  let loaderAxis = null;
+  function openLoader(axis) {
+    loaderAxis = axis;
+    loaderTitle.textContent = `LOAD ${axis.toUpperCase()} ${axis === 'x' ? '→' : '↑'}`;
+    list.innerHTML = '';
+    for (const e of SHELL_EFFECTS) {
+      const row = h('button.fxrow', { type: 'button' }, h('span.fxn', { text: e.label }), h('span.fxh', { text: e.hint }));
+      if (s[axis] === e.id) row.classList.add('on');
+      tap(row, () => choose(e.id));
+      list.append(row);
+    }
+    loader.classList.add('open');
+    list.querySelector('.on')?.scrollIntoView({ block: 'center' });
+  }
+  function closeLoader() { loader.classList.remove('open'); loaderAxis = null; }
+  function choose(id) {
+    s[loaderAxis] = id;
+    s.roll = 0;
+    closeLoader();
     apply();
     app.saveXY();
     update();
-  };
-  const xLab = h('span.axisname');
-  const yLab = h('span.axisname');
-  const holdBtn = button('HOLD', () => { s.hold = !s.hold; if (!s.hold) release(); update(); app.saveXY(); });
-  const pickers = h('div.pickers', {},
-    h('div.row', {}, h('span.lab', { text: 'X →' }), button('◂', () => pick('x', -1), 'sm'), xLab, button('▸', () => pick('x', 1), 'sm')),
-    h('div.row', {}, h('span.lab', { text: 'Y ↑' }), button('◂', () => pick('y', -1), 'sm'), yLab, button('▸', () => pick('y', 1), 'sm')));
+  }
+
+  // ---- the generated name + SAVE
+  const nameEl = h('span.comboname');
+  const diceBtn = button('🎲', () => { s.roll++; update(); }, 'sm');
+  diceBtn.title = 'Another name';
+  const saveBtn = button('SAVE', () => {
+    s.combos.push({ name: currentName(), x: s.x, y: s.y });
+    app.saveXY();
+    app.toast(`SAVED · ${currentName()}`);
+    update();
+  }, 'hot');
+  const currentName = () => comboName(s.x, s.y, s.roll);
 
   // ---- the pad
   const canvas = h('canvas');
-  const dot = h('div.xydot', {}, spriteImg('dew', 4));
+  const cursor = h('div.xydot', {}, spriteImg('shell', 2));
   const xHint = h('span.xyh.xh');
   const yHint = h('span.xyh.yh');
-  const pad = h('div.xypad', {}, canvas, dot, xHint, yHint);
+  const pad = h('div.xypad', {}, canvas, cursor, xHint, yHint);
   const trail = [];
   let dragging = false;
   let snapAnim = 0;
@@ -40,7 +75,7 @@ export function fxPage(app) {
     fx()?.setAmount('x', s.ax);
     fx()?.setAmount('y', s.ay);
     trail.push({ x: s.ax, y: s.ay, t: performance.now() });
-    if (trail.length > 40) trail.shift();
+    if (trail.length > 60) trail.shift();
     draw();
   }
   const fromEvent = (ev) => { const r = pad.getBoundingClientRect(); return [(ev.clientX - r.left) / r.width, 1 - (ev.clientY - r.top) / r.height]; };
@@ -57,7 +92,7 @@ export function fxPage(app) {
   pad.addEventListener('pointerup', up);
   pad.addEventListener('pointercancel', up);
 
-  /** Glide both axes smoothly back to zero. */
+  /** Glide both axes smoothly back to zero (the shell crawls home). */
   function release() {
     const fromX = s.ax || 0;
     const fromY = s.ay || 0;
@@ -67,8 +102,15 @@ export function fxPage(app) {
       const t = (performance.now() - t0) / 1000;
       setXY(snapBack(fromX, t), snapBack(fromY, t));
       if (s.ax > 0 || s.ay > 0) snapAnim = requestAnimationFrame(stepAnim);
+      else fadeTrail();
     };
     stepAnim();
+  }
+  // Keep redrawing for a moment so the slime trail dries up.
+  function fadeTrail() {
+    const end = performance.now() + 800;
+    const f = () => { draw(); if (performance.now() < end && !dragging) requestAnimationFrame(f); };
+    requestAnimationFrame(f);
   }
 
   function draw() {
@@ -78,54 +120,57 @@ export function fxPage(app) {
     g.fillStyle = '#2b1d14'; g.fillRect(0, 0, W, H);
     g.fillStyle = '#3f5a26';
     for (let i = 6; i < W; i += 6) { g.fillRect(i, 0, 1, H); g.fillRect(0, i, W, 1); }
-    // slime trail
     const now = performance.now();
     for (const p of trail) {
-      const age = (now - p.t) / 700;
+      const age = (now - p.t) / 800;
       if (age > 1) continue;
-      g.fillStyle = `rgba(182,227,90,${0.7 * (1 - age)})`;
+      g.fillStyle = `rgba(182,227,90,${0.8 * (1 - age)})`;
       g.fillRect(Math.round(p.x * (W - 2)), Math.round((1 - p.y) * (H - 2)), 2, 2);
     }
-    // amount bars along the edges
     g.fillStyle = '#d9823b';
     g.fillRect(0, H - 2, Math.round((s.ax || 0) * W), 2);
     g.fillRect(0, H - Math.round((s.ay || 0) * H), 2, Math.round((s.ay || 0) * H));
-    dot.style.left = `${(s.ax || 0) * 100}%`;
-    dot.style.top = `${(1 - (s.ay || 0)) * 100}%`;
-    dot.style.opacity = (s.ax || 0) + (s.ay || 0) > 0.01 || dragging ? 1 : 0.35;
+    cursor.style.left = `${(s.ax || 0) * 100}%`;
+    cursor.style.top = `${(1 - (s.ay || 0)) * 100}%`;
+    cursor.classList.toggle('rest', (s.ax || 0) + (s.ay || 0) <= 0.01 && !dragging);
   }
 
-  // ---- combos
-  const comboRow = h('div.combos');
+  // ---- saved combos (as many as you like)
+  const comboGrid = h('div.combos');
+  let editing = false;
+  const editBtn = button('EDIT', () => { editing = !editing; renderCombos(); }, 'sm');
   function renderCombos() {
-    comboRow.innerHTML = '';
+    editBtn.classList.toggle('on', editing);
+    editBtn.textContent = editing ? 'DONE' : 'EDIT';
+    comboGrid.innerHTML = '';
+    if (!s.combos.length) comboGrid.append(h('p.help', { text: 'No combos yet. Build a pairing and tap SAVE.' }));
     s.combos.forEach((c, i) => {
-      const b = h('button.bevel.combo', { type: 'button' }, h('b', { text: c.name }), h('small', { text: `${XY_LABELS[c.x]} + ${XY_LABELS[c.y]}` }));
+      const b = h('button.bevel.combo', { type: 'button' }, h('b', { text: c.name }), h('small', { text: `${XY_LABELS[c.x] || c.x} + ${XY_LABELS[c.y] || c.y}` }));
       b.classList.toggle('on', c.x === s.x && c.y === s.y);
-      // Tap: load this pairing. Hold 0.6 s: save the current pairing here.
-      let timer = null;
-      let saved = false;
-      b.addEventListener('pointerdown', (ev) => {
-        ev.preventDefault();
-        saved = false;
-        b.classList.add('down');
-        timer = setTimeout(() => { saved = true; s.combos[i] = { name: c.name, x: s.x, y: s.y }; app.saveXY(); app.toast(`SAVED · ${c.name}`); renderCombos(); }, 600);
-      });
-      const end = () => {
-        clearTimeout(timer);
-        b.classList.remove('down');
-        if (!saved && timer) { s.x = c.x; s.y = c.y; apply(); app.saveXY(); update(); app.toast(`${c.name} · ${XY_LABELS[c.x]} + ${XY_LABELS[c.y]}`); }
-        timer = null;
-      };
-      b.addEventListener('pointerup', end);
-      b.addEventListener('pointerleave', () => { clearTimeout(timer); timer = null; b.classList.remove('down'); });
-      comboRow.append(b);
+      if (!editing) {
+        tap(b, () => { s.x = c.x; s.y = c.y; s.roll = 0; apply(); app.saveXY(); update(); app.toast(c.name); });
+        comboGrid.append(b);
+        return;
+      }
+      const rename = button('✎', () => {
+        const name = window.prompt('Name this combo', c.name);
+        if (name && name.trim()) { c.name = name.trim().slice(0, 40); app.saveXY(); renderCombos(); }
+      }, 'sm');
+      const del = button('✕', () => { s.combos.splice(i, 1); app.saveXY(); renderCombos(); }, 'sm');
+      comboGrid.append(h('div.comboedit', {}, b, rename, del));
     });
   }
 
+  const holdBtn = button('HOLD', () => { s.hold = !s.hold; if (!s.hold) release(); update(); app.saveXY(); });
   const el = h('div.page', {},
-    win('XY Effects', [pickers, h('div.xywrap', { style: 'margin-top:6px' }, pad), h('div.row', { style: 'margin-top:6px' }, holdBtn, h('span.grow'), h('span.help', { text: 'Drag to play both effects. Let go: they glide back.' }))]),
-    win('Combos', [comboRow, h('p.help', { text: 'Tap a combo to load it. Hold one to save the current X + Y pairing in its place.' })]),
+    win('Shell Shock', [
+      h('div.loaders', {}, loadX, loadY),
+      h('div.row.namerow', {}, nameEl, diceBtn, saveBtn),
+      h('div.xywrap', {}, pad),
+      h('div.row', { style: 'margin-top:6px' }, holdBtn, h('span.grow'), h('span.help', { text: 'Drag: both effects. Let go: they glide back.' })),
+    ]),
+    win('Combos', [h('div.row', {}, h('span.lab', { text: 'SAVED' }), h('span.grow'), editBtn), h('div', { style: 'margin-top:6px' }, comboGrid)]),
+    loader,
   );
 
   function apply() {
@@ -136,8 +181,11 @@ export function fxPage(app) {
   }
 
   function update() {
-    xLab.textContent = XY_LABELS[s.x];
-    yLab.textContent = XY_LABELS[s.y];
+    loadX.innerHTML = '';
+    loadX.append(h('small', { text: 'X →' }), h('span', { text: XY_LABELS[s.x] || s.x }), h('i', { text: '▾' }));
+    loadY.innerHTML = '';
+    loadY.append(h('small', { text: 'Y ↑' }), h('span', { text: XY_LABELS[s.y] || s.y }), h('i', { text: '▾' }));
+    nameEl.textContent = `“${currentName()}”`;
     xHint.textContent = `${XY_LABELS[s.x]} → ${XY_HINTS[s.x]}`;
     yHint.textContent = `${XY_LABELS[s.y]} ↑ ${XY_HINTS[s.y]}`;
     holdBtn.classList.toggle('on', s.hold);
@@ -145,5 +193,5 @@ export function fxPage(app) {
     draw();
   }
 
-  return { el, update, apply };
+  return { el, update, apply, currentName };
 }

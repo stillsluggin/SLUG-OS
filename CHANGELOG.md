@@ -2,6 +2,22 @@
 
 All notable changes to Slug OS, newest first. Written for players, not programmers.
 
+## Unreleased (branch claude/shell-shock)
+
+### Changed
+- **The XY pad is now SHELL SHOCK**: a shell cursor with a slime trail follows
+  your finger. Tap X or Y to load **any** effect from a scrolling list (no fixed
+  pairs; the same effect can even go on both axes).
+- **TAPE STOP is expressive**: the further along the axis, the faster the tape
+  stops (from a slow 3-second wind-down to instant). Drag back and it spins
+  smoothly back up to speed.
+- **Combos are auto-named** (e.g. "Pixel Gritty Bloom"), with 🎲 for another
+  name. SAVE as many as you like; EDIT to rename or delete.
+
+### Added
+- Nine new effects: LO-FI, VINYL WOBBLE, TAPE SATURATION, REVERB WASH, CHORUS,
+  RING MOD, PITCH DIVE, TRANCE GATE, REVERSE REPEAT (18 in all).
+
 ## Unreleased (branch claude/history-capture)
 
 ### Added

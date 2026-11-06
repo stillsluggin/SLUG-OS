@@ -44,7 +44,7 @@ what fits and what doesn't.
 | **Sampler, chop bank, video/mic import** | ❌ | Browser-only. Needs large RAM for audio, file decoding (mp4/mov) and a file system |
 | **Private kit import, IndexedDB, loops** | ❌ | Browser-only. On the device, at most a few small kits stored in flash |
 | Sampler pitch / stretch (WSOLA, beats) | ❌ | Offline rendering of whole samples; browser-only with the sampler |
-| XY Effects Pad | ⚠️ | No touch screen on the FM-1. Could map X/Y to two encoders; filter, isolator, delay, stutter and crusher are cheap; beat repeat and tape stop need a RAM buffer (~2 s ≈ 350 KB at 44.1 kHz stereo 16-bit: too much, use mono or shorter) |
+| SHELL SHOCK (XY effects) | ⚠️ | No touch screen on the FM-1: map X/Y to two encoders. Cheap: filter, isolator, delay, stutter, crusher, lo-fi, saturation, ring mod, gate, chorus. Need RAM buffers: beat repeat, reverse repeat, tape stop, pitch dive (keep to ~0.5 s mono). Reverb wash needs a light algorithmic reverb instead of convolution |
 | Metronome | ✅ | Trivial |
 | Chord History, CAPTURE, parts, OVERDUB/REPLACE | ✅ | Small fixed arrays (e.g. 64 history chords, 256 logged events, 64 notes per part). BACK/FORWARD on OCT- / OCT+, CAPTURE on SAVE |
 | Web MIDI / computer keyboard | n/a | The hardware keys and TRS/USB MIDI replace them |

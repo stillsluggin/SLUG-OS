@@ -19,17 +19,28 @@ following TEMPO, even when the band is stopped.
 
 **BAND**: what's playing, Next Chord, the five players, the knobs and buttons.
 **SEQ**: the 16-step chord sequencer. **DRUMS**: kits, the boom bap pattern,
-finger drums, loops. **SAMPLER**: load, chop and play pads. **XY FX**: the effects pad.
+finger drums, loops. **SAMPLER**: load, chop and play pads. **SHELL SHOCK**: the XY effects pad.
 
-### XY FX pad
+### SHELL SHOCK (the XY effects pad)
 
 Drag on the big grid: left-right plays the **X** effect, up-down the **Y**
-effect, both at once. Pick each with ◂ ▸: FILTER, ISOLATOR (kills lows, then
-mids), BEAT REPEAT, PHASER, FLANGER, DELAY, TAPE STOP, STUTTER, BIT CRUSH.
-Let go and they glide back to off; turn on **HOLD** to keep them where you
-left them. **Combos**: tap one to load a pairing, hold one to save the current
-pairing in its place. The pad affects everything (band, drums, sampler,
-loops); the metronome stays clean.
+effect, both at once. A little shell follows your finger and leaves a slime
+trail. Let go and the effects glide back to off; turn on **HOLD** to keep them.
+
+- **Load any effect**: tap **X** or **Y** to open the list and tap one. Any
+  effect can go on either axis, even the same one twice. The 18 effects:
+  FILTER, ISOLATOR, BEAT REPEAT, PHASER, FLANGER, DELAY, TAPE STOP, STUTTER,
+  BIT CRUSH, LO-FI, VINYL WOBBLE, TAPE SATURATION, REVERB WASH, CHORUS,
+  RING MOD, PITCH DIVE, TRANCE GATE, REVERSE REPEAT.
+- **TAPE STOP** is played by position: just past the start the tape winds
+  down slowly (about 3 seconds), further along it's quicker, at the far end it
+  stops instantly. Drag back and it spins smoothly back up to speed.
+- **Names**: every pairing gets a generated name (like "Mossy Tape Dive").
+  🎲 rolls another. **SAVE** keeps it as a one-tap combo; save as many as you
+  like. **EDIT** lets you rename (✎) or delete (✕) combos.
+
+The pad affects everything (band, drums, sampler, loops); the metronome stays
+clean.
 
 ### Sampler pads
 

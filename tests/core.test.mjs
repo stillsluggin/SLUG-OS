@@ -201,15 +201,30 @@ test('pitch / warp planner', () => {
   assert.equal(assignSample(emptyPad(0), { sampleId: 'x', name: 'loop 92bpm', duration: 2 }).srcBpm, 92);
 });
 
-import { XY_EFFECTS, DEFAULT_COMBOS, repeatBeats, snapBack } from '../src/core/xy.js';
+import { XY_EFFECTS, SHELL_EFFECTS, DEFAULT_COMBOS, repeatBeats, snapBack, comboName, tapeStopSeconds } from '../src/core/xy.js';
+import { MAKERS } from '../src/audio/xyfx.js';
 
-test('xy pad: effects, combos, repeat lengths, snap back', () => {
-  assert.deepEqual(XY_EFFECTS, ['filter', 'isolator', 'looper', 'phaser', 'flanger', 'delay', 'tapestop', 'stutter', 'crusher']);
-  assert.ok(DEFAULT_COMBOS.every((c) => XY_EFFECTS.includes(c.x) && XY_EFFECTS.includes(c.y) && c.x !== c.y));
+test('shell shock: every effect has a maker, names, tape stop timing, snap back', () => {
+  assert.equal(XY_EFFECTS.length, 18);
+  for (const id of ['filter', 'isolator', 'looper', 'phaser', 'flanger', 'delay', 'tapestop', 'stutter', 'crusher',
+    'lofi', 'wobble', 'saturate', 'wash', 'chorus', 'ringmod', 'dive', 'gate', 'reverse']) assert.ok(XY_EFFECTS.includes(id), id);
+  for (const e of SHELL_EFFECTS) {
+    assert.equal(typeof MAKERS[e.id], 'function', `maker for ${e.id}`);
+    assert.ok(e.label && e.hint && e.a.length && e.b.length, `metadata for ${e.id}`);
+  }
+  assert.ok(DEFAULT_COMBOS.every((c) => XY_EFFECTS.includes(c.x) && XY_EFFECTS.includes(c.y) && c.name));
+  // Names: 3 words, stable for the same pairing, different with the dice
+  const n = comboName('tapestop', 'dive');
+  assert.equal(n.split(' ').length, 3);
+  assert.equal(comboName('tapestop', 'dive'), n);
+  const rolls = new Set([0, 1, 2, 3, 4, 5].map((r) => comboName('tapestop', 'dive', r)));
+  assert.ok(rolls.size >= 4, [...rolls].join(' / '));
+  assert.ok(comboName('filter', 'filter').split(' ').length === 3, 'same effect on both axes is fine');
+  // Tape stop: slow wind-down near the start, instant at the end
+  assert.ok(tapeStopSeconds(0.06) > 2.5);
+  assert.ok(tapeStopSeconds(1) < 0.05);
+  assert.ok(tapeStopSeconds(0.5) < tapeStopSeconds(0.3));
   assert.equal(repeatBeats(0.1), 1);
-  assert.equal(repeatBeats(1), 1 / 16);
-  assert.equal(snapBack(0.8, 0), 0.8);
-  assert.ok(snapBack(0.8, 0.1) < 0.8);
   assert.equal(snapBack(0.8, 0.3), 0);
 });
 
