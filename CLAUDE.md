@@ -217,6 +217,13 @@ resampling the whole app's output inside the app, the second sampler page.
 
 ## Part 2 — Working notes
 
+### Where it lives
+- Repository: https://github.com/StillSLUGGIN/SLUG-OS (the old account
+  melinebeats was suspended; everything moved here in Nov 2026).
+- Live app (GitHub Pages from `main`, root): https://stillsluggin.github.io/SLUG-OS/
+  The path follows the repository name exactly (capitals matter).
+- Work on a branch, open a pull request into `main`; merging publishes.
+
 ### Where things are
 | Folder | What lives there |
 | --- | --- |

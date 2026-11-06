@@ -1,5 +1,7 @@
 # Slug OS
 
+**Play it:** https://stillsluggin.github.io/SLUG-OS/
+
 **A 70s session band in your pocket, plus a lazy-chop sampler.** An idea
 starter for original music and samples that sound like 70s funk, jazz and soul
 records. Play a chord with one finger and the Slug Band plays it with you,
